@@ -1,5 +1,5 @@
 /* GIMP - The GNU Image Manipulation Program
- * Copyright (C) 1995 Spencer Kimball and Peter Mattis
+ * Copyright (C) Srihari Sriraman, Suhas Bharadwaj, Vidyashree K and Zeeshan Ali Ansari
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
