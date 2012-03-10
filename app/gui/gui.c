@@ -494,7 +494,7 @@ gui_restore_after_callback (Gimp               *gimp,
 
     gui_add_to_app_menu (image_ui_manager, group,
                          "/dummy-menubar/image-popup/Help/dialogs-tito",
-                         _("About GIMP"));
+                         _("Tito"));
 
     /*  the preferences group  */
     group = ige_mac_menu_add_app_menu_group ();
