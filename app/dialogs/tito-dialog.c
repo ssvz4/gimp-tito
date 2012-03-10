@@ -1,5 +1,5 @@
 /* GIMP - The GNU Image Manipulation Program
- * Copyright (C) Srihari Sriraman, Suhas Bharadwaj, Vidyashree K and Zeeshan Ali Ansari
+ * Copyright (C) 2012 Srihari Sriraman, Suhas Bharadwaj, Vidyashree K, Zeeshan Ali Ansari
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "config.h"           
 
 #include <string.h>

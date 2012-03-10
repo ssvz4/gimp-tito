@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "config.h"
 
 #include <gtk/gtk.h>
@@ -266,8 +267,8 @@ static const GimpStringActionEntry dialogs_toplevel_actions[] =
     GIMP_HELP_ABOUT_DIALOG },
     
     { "dialogs-tito", GTK_STOCK_ABOUT,
-    NC_("dialogs-action", "_Tito"), NULL,
-    NC_("dialogs-action", "Menu search and more"),
+    NC_("dialogs-action", "_Tito"), NULL,       //label
+    NC_("dialogs-action", "Menu search and more..."),//tooltip
     "gimp-tito-dialog",
     GIMP_HELP_TITO_DIALOG }
 };
