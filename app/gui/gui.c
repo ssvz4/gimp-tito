@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "config.h"
 
 #include <stdlib.h>
@@ -493,7 +494,7 @@ gui_restore_after_callback (Gimp               *gimp,
 
     gui_add_to_app_menu (image_ui_manager, group,
                          "/dummy-menubar/image-popup/Help/dialogs-tito",
-                         _("Tito"));
+                         _("Menu search and more"));
 
     /*  the preferences group  */
     group = ige_mac_menu_add_app_menu_group ();
