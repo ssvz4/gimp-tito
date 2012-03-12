@@ -51,12 +51,20 @@ gboolean result_selected (GtkWidget * widget,
                       GdkEventKey* pKey,
                       gpointer func_data);           //callback for return key pressed on result
 void run_result_action(void);                        //resposible for carrying out action selected
+void row_activated ( GtkTreeView        *treeview,
+                     GtkTreePath        *path,
+                     GtkTreeViewColumn  *col,
+                     gpointer            userdata); //double click on result
+static gchar* find_accel_label( GtkAction *action);              //finds the shortcut (if any)
+static gboolean tito_action_view_accel_find_func ( GtkAccelKey *key,
+                                                   GClosure    *closure,
+                                                   gpointer     data);                     
 
-
-
+GimpUIManager *manager;
 static GtkWidget *dialog;
 static GtkWidget *list;                             //view shown to the user
 static GtkWidget *list_view;
+static GtkWidget *keyword_entry;
 static gint def_height=1,r_height=200;
 static gfloat tito_width_perc=0.4,tito_top_perc=0.13;
 
@@ -78,7 +86,7 @@ tito_dialog_create (void)
 static GtkWidget* 
 setup_list(void)
 {
-  gint wid1=200,wid2=100;
+  gint wid1=200;
   GtkWidget *sc_win;
   GtkListStore *store; // holds all objects to be displayed in the list
   GtkCellRenderer *cell;
@@ -98,6 +106,8 @@ setup_list(void)
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sc_win),
                                  GTK_POLICY_NEVER,
                                  GTK_POLICY_AUTOMATIC);
+  g_signal_connect(list, "row-activated", (GCallback) row_activated, NULL);
+                                 
   gtk_container_add(GTK_CONTAINER(sc_win),list);
   g_object_unref(G_OBJECT(store));
   return sc_win;
@@ -107,7 +117,7 @@ setup_list(void)
 static gboolean
 search_dialog (void)
 {
-  GtkWidget *main_vbox, * keyword_entry;
+  GtkWidget *main_vbox;
   gboolean run;
   gdouble opacity=0.7;
 
@@ -196,8 +206,9 @@ result_selected ( GtkWidget * widget,
       case GDK_Return:
       {
         //if enter pressed then get selection
+			  gtk_widget_hide(dialog);
 			  run_result_action();
-			  gtk_widget_destroy(dialog);
+ 			  gtk_widget_destroy(dialog);
         break;
     	}
     	case GDK_Escape: 
@@ -205,11 +216,42 @@ result_selected ( GtkWidget * widget,
         gtk_widget_destroy(dialog);
         return TRUE;
       }
+      case GDK_Up:
+      {
+        //check if first reults is selected
+        GtkTreeSelection *selection;
+        GtkTreeModel     *model;
+        GtkTreeIter       iter;
+        GtkTreePath       *path;
+        /* This will only work in single or browse selection mode! */
+        selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(list));
+        gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
+      
+        if (gtk_tree_selection_get_selected(selection, &model, &iter))
+        {
+          path = gtk_tree_model_get_path(model,&iter);
+          if(strcmp(gtk_tree_path_to_string(path),"0")==0)
+           { 
+             gtk_widget_grab_focus((GTK_WIDGET(keyword_entry)));
+           }
+        }
+      }
     }
   }
   return FALSE;
 }
 
+void
+row_activated ( GtkTreeView        *treeview,
+                GtkTreePath        *path,
+                GtkTreeViewColumn  *col,
+                gpointer            userdata)
+{
+  gtk_widget_hide(dialog);
+	run_result_action();
+ 	gtk_widget_destroy(dialog);
+}
+  
 
 static void
 add_to_list( const gchar *label,
@@ -221,16 +263,42 @@ add_to_list( const gchar *label,
   char *desc = (char *) tooltip;
   char *labe = (char *) label;
   char *data = (char *) malloc(1024);
+  gchar *accel_string;
   if(data!=NULL)
     {
       strcpy(data,labe);
+
+      if(!gtk_action_get_sensitive(action))
+        {
+          return;
+        }
+
+      //check if its a toggle action
+      if(GTK_IS_TOGGLE_ACTION(action))
+        {
+          if(gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action)))
+            strcat(data, " [On]");
+          else
+            strcat(data, " [Off]");
+          //add toggle status to data
+        }
+        
+        accel_string=find_accel_label(action);
+        if(accel_string!=NULL)
+        {
+          strcat(data, " [");
+          strcat(data, accel_string);
+          strcat(data, "]");          
+        }
+
       if(desc!=NULL)
         { 
           strcat(data,"\n ");
           strcat(data,desc);
         }
-      store= GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(list)));
 
+
+      store= GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(list)));
       gtk_list_store_append(store, &iter);
       gtk_list_store_set(store, &iter, RESULT_DATA, data, RESULT_ACTION, action, -1);
       free(data);
@@ -265,12 +333,12 @@ void
 search_display_results (const gchar *keyword)
 {
   //iterate through all actions
-  GimpUIManager *manager;
   GList             *list;
   manager= gimp_ui_managers_from_name ("<Image>")->data;
   
   if(strcmp(keyword,"")==0)
     return;
+
 
   //for every action group
   for (list = gtk_ui_manager_get_action_groups (GTK_UI_MANAGER (manager));
@@ -297,10 +365,9 @@ search_display_results (const gchar *keyword)
               strstr (name, "-popup") ||
               name[0] == '<')
             continue;
-
+            
           if(search(action,keyword))
        	  {
-  
             add_to_list(gimp_strip_uline (gtk_action_get_label (action)),gtk_action_get_tooltip (action),action);
           }
         }
@@ -327,3 +394,46 @@ search( GtkAction *action,
   	}
   return FALSE;
 }
+
+
+static gboolean
+tito_action_view_accel_find_func (GtkAccelKey *key,
+                                  GClosure    *closure,
+                                  gpointer     data)
+{
+  return (GClosure *) data == closure;
+}
+
+static gchar*
+find_accel_label( GtkAction *action)
+{
+  guint            accel_key     = 0;
+  GdkModifierType  accel_mask    = 0;
+  GClosure        *accel_closure = NULL;
+  gchar           *accel_string;
+  GtkAccelGroup   *accel_group;
+  
+  accel_group = gtk_ui_manager_get_accel_group (GTK_UI_MANAGER (manager));
+  accel_closure = gtk_action_get_accel_closure (action);
+
+  if(accel_closure)
+   {
+     GtkAccelKey *key;
+     key = gtk_accel_group_find (accel_group,
+                                 tito_action_view_accel_find_func,
+                                 accel_closure);
+     if (key            &&
+         key->accel_key &&
+         key->accel_flags & GTK_ACCEL_VISIBLE)
+      {
+        accel_key  = key->accel_key;
+        accel_mask = key->accel_mods;
+      }
+   }
+  accel_string = gtk_accelerator_get_label (accel_key, accel_mask);
+  if(strcmp(accel_string,""))
+    return accel_string;
+
+  return NULL;    
+}
+
