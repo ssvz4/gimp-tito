@@ -59,6 +59,8 @@ static gchar* find_accel_label( GtkAction *action);              //finds the sho
 static gboolean tito_action_view_accel_find_func ( GtkAccelKey *key,
                                                    GClosure    *closure,
                                                    gpointer     data);                     
+static void update_history(GtkAction *action);
+static void read_history(void);
 
 GimpUIManager *manager;
 static GtkWidget *dialog;
@@ -74,12 +76,17 @@ static enum {
   N_COL
 };
   
+static struct HISTORY{    //sturcture for tito history
+  GtkAction* history_action;
+  int count;
+}history[10]; 
 
 GtkWidget *
 tito_dialog_create (void)
 {
   search_dialog();
-   gtk_accel_map_change_entry ("<Actions>/dialogs/dialogs-tito",'?',GDK_SHIFT_MASK,FALSE);
+  gtk_accel_map_change_entry ("<Actions>/dialogs/dialogs-tito",'?',GDK_SHIFT_MASK,FALSE);
+  read_history();
   return dialog;
 }
 
@@ -312,11 +319,10 @@ run_result_action(void)
   GtkTreeSelection *selection;
   GtkTreeModel     *model;
   GtkTreeIter       iter;
-
-  /* This will only work in single or browse selection mode! */
+  
+    /* This will only work in single or browse selection mode! */
   selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(list));
   gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
-
   if (gtk_tree_selection_get_selected(selection, &model, &iter))
   {
     gchar *name;
@@ -324,6 +330,7 @@ run_result_action(void)
     gtk_tree_model_get (model, &iter, RESULT_DATA, &name, -1);
     gtk_tree_model_get (model, &iter, RESULT_ACTION, &action, -1);
     gtk_action_activate(action);
+    update_history(action);
     g_free(name);
   }
 }
@@ -334,11 +341,24 @@ search_display_results (const gchar *keyword)
 {
   //iterate through all actions
   GList             *list;
+  int i = 0;  
   manager= gimp_ui_managers_from_name ("<Image>")->data;
-  
   if(strcmp(keyword,"")==0)
     return;
-
+	
+	//search in history
+	for(i=0;i<10;i++)
+  	{
+  	  if(history[i].history_action!=NULL)
+	    {
+	      if(search(history[i].history_action,keyword))
+          add_to_list( gimp_strip_uline (gtk_action_get_label (history[i].history_action)),
+                     gtk_action_get_tooltip (history[i].history_action),
+                     history[i].history_action );	        
+	    }
+/*	    else*/
+/*	      g_message("failed to search in history");*/
+	  }
 
   //for every action group
   for (list = gtk_ui_manager_get_action_groups (GTK_UI_MANAGER (manager));
@@ -349,7 +369,8 @@ search_display_results (const gchar *keyword)
       GList           *actions;
       GList           *list2;
       
-      //get and sort actions      
+      
+      //get and sort actions
       actions = gtk_action_group_list_actions (GTK_ACTION_GROUP (group));
       actions = g_list_sort (actions, (GCompareFunc) gimp_action_name_compare);
       
@@ -360,20 +381,30 @@ search_display_results (const gchar *keyword)
           const gchar     *name;
           name         = gtk_action_get_name (action);
 
+            
           //exclude menus and popups
           if (strstr (name, "-menu")  ||
               strstr (name, "-popup") ||
               name[0] == '<')
             continue;
+
+          for(i=0;i<10;i++)
+            {
+              if(history[i].history_action!=NULL)
+                if(strcmp(gtk_action_get_name(history[i].history_action),name)==0)
+                  continue;
+            }
             
           if(search(action,keyword))
        	  {
-            add_to_list(gimp_strip_uline (gtk_action_get_label (action)),gtk_action_get_tooltip (action),action);
+       	    //check if action-name is one out of 10 history_action
+            add_to_list( gimp_strip_uline (gtk_action_get_label (action)),
+                         gtk_action_get_tooltip (action),
+                         action);
           }
         }
-      g_list_free (actions);
-
-    }
+    g_list_free (actions);
+   }
 }
 
 static gboolean
@@ -383,7 +414,7 @@ search( GtkAction *action,
 	const gchar *label, *tooltip;
   label        = gimp_strip_uline (gtk_action_get_label (action));
   tooltip      = gtk_action_get_tooltip (action);
-	
+
 	if(strcasestr(label,keyword))
 		{
 		  return TRUE; 
@@ -437,3 +468,59 @@ find_accel_label( GtkAction *action)
   return NULL;    
 }
 
+static void read_history(void)
+{
+  int i;
+  FILE *fp;
+  fp= fopen("history_tito.txt","rb");
+    if(fp==NULL)
+      {
+          g_message("No history to read");
+          return ;
+      }
+    for(i=0;i<10;i++)
+       {
+          if(fread(&history[i],sizeof(history[i]),1,fp)==0)
+            {
+              g_message("nulls assigned");
+              history[i].history_action=NULL;
+              history[i].count=0;
+            }
+       }
+  fclose(fp);
+}
+
+static void update_history(GtkAction *action)
+{
+  int i;
+  FILE *fp;
+  gboolean is_present=FALSE;
+  int min_pos=0;
+  fp= fopen("history_tito.txt","wb");
+    if(fp==NULL)
+      {
+          g_message("unable to open history file to write");
+          return ;
+      }
+    for(i=0;i<10;i++)
+      {
+         if(action==history[i].history_action)
+          {
+            history[i].count++;
+            is_present=TRUE;
+            break ;
+          }
+         if(history[min_pos].count > history[i].count)
+           min_pos=i;
+      }
+      if(!is_present)
+       {
+         history[min_pos].history_action=action;
+         history[min_pos].count=1;
+       }    
+   for(i=0;i<10;i++)
+       {
+           fwrite(&history[i],sizeof(history[i]),1,fp);
+       }
+  fclose(fp);
+}
