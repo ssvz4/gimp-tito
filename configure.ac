@@ -8,7 +8,7 @@ AC_PREREQ(2.54)
 
 m4_define([gimp_major_version], [2])
 m4_define([gimp_minor_version], [7])
-m4_define([gimp_micro_version], [5])
+m4_define([gimp_micro_version], [6])
 m4_define([gimp_real_version],
           [gimp_major_version.gimp_minor_version.gimp_micro_version])
 m4_define([gimp_version], [gimp_real_version])
@@ -1154,13 +1154,21 @@ AC_SUBST(Z_LIBS)
 # Check for libbzip2
 ####################
 
-have_libbzip2=yes
-if test -z "$BZIP2_LIBS"; then
+AC_ARG_WITH(gs,  [  --without-bzip2         build without bzip2 support])
+
+have_libbzip2=no
+if test "x$with_bzip2" != xno; then
+  have_libbzip2=yes
   AC_CHECK_LIB(bz2, BZ2_bzCompress,
     [AC_CHECK_HEADER(bzlib.h,
       BZIP2_LIBS='-lbz2',
       [have_libbzip2="no (libbzip2 header files not found)"])],
     [have_libbzip2="no (libbzip2 library not found)"])
+  if test "x$have_libbzip2" != xyes -a "x$with_bzip2" = xyes; then
+    AC_MSG_ERROR([
+*** Checks for bzip2 library failed. You can build without it by passing
+*** --without-bzip2 to configure but you won't be able to use compressed files then.])
+  fi
 fi
 
 AM_CONDITIONAL(HAVE_BZIP2, test "x$have_libbzip2" = xyes)
@@ -1176,13 +1184,21 @@ fi
 # Check for Ghostscript library
 ###############################
 
-have_gs=yes
-if test -z "$GS_LIBS"; then
+AC_ARG_WITH(gs,  [  --without-gs            build without Ghostscript support])
+
+have_gs=no
+if test "x$with_gs" != xno; then
+  have_gs=yes
   AC_CHECK_LIB(gs, gsapi_new_instance,
     [AC_CHECK_HEADER(ghostscript/iapi.h,
       FILE_PS='file-ps$(EXEEXT)'; GS_LIBS='-lgs',
       [have_gs="no (Ghostscript header files not found)"])],
     [have_gs="no (Ghostscript library not found)"])
+  if test "x$have_gs" != xyes -a "x$with_gs" = xyes; then
+    AC_MSG_ERROR([
+*** Checks for Ghostscript library failed. You can build without it by passing
+*** --without-gs to configure but you won't be able to use Postscript files then.])
+  fi
 fi
 
 AC_SUBST(FILE_PS)
@@ -1399,7 +1415,7 @@ AC_SUBST(FILE_PDF_LOAD)
 # Check for cairo-pdf
 #####################
 
-AC_ARG_WITH(cairo_pdf,[  --without-cairo-pdf       build without cairo-pdf support])
+AC_ARG_WITH(cairo_pdf,[  --without-cairo-pdf     build without cairo-pdf support])
 have_cairo_pdf=no
 if test "x$with_cairo_pdf" != xno; then
   have_cairo_pdf=yes
@@ -1658,7 +1674,7 @@ fi
 # Check for libgudev
 ####################
 
-AC_ARG_WITH(gudev, [  --without-gudev        build without GUdev support])
+AC_ARG_WITH(gudev, [  --without-gudev         build without GUdev support])
 
 have_libgudev=no
 
@@ -1889,7 +1905,7 @@ AM_CONDITIONAL(HAVE_XSLTPROC, test "x$XSLTPROC" != "xno")
 # Check for xvfb-run
 ####################
 
-AC_ARG_WITH(xvfb-run,  [  --without-xvfb-run      Do not use xvfb-run for UI-dependent automatic tests])
+AC_ARG_WITH(xvfb-run,  [  --without-xvfb-run      do not use xvfb-run for UI-dependent automatic tests])
 
 have_xvfb_run="no (disabled)"
 if test "x$with_xvfb_run" != "xno"; then
@@ -1968,12 +1984,6 @@ AC_SUBST(gimplocaledir)
 ############################
 # Some defines for the build
 ############################
-
-GIMPINSTALL=
-if test "$INSTALL" = "$ac_install_sh"; then
-  GIMPINSTALL="gimpinstall-gimp_tool_version"
-fi
-AC_SUBST(GIMPINSTALL)
 
 AM_CONDITIONAL(STATICLIBS, test "x$enable_static" = xyes)
 

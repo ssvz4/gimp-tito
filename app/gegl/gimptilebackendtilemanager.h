@@ -32,7 +32,7 @@ G_BEGIN_DECLS
 #define GIMP_IS_TILE_BACKEND_TILE_MANAGER_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass),  GIMP_TYPE_TILE_BACKEND_TILE_MANAGER))
 #define GIMP_TILE_BACKEND_TILE_MANAGER_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj),  GIMP_TYPE_TILE_BACKEND_TILE_MANAGER, GimpTileBackendTileManagerClass))
 
-typedef struct _GimpTileBackendTileManagerClass GimpTileBackendTileManagerClass;
+typedef struct _GimpTileBackendTileManagerClass   GimpTileBackendTileManagerClass;
 typedef struct _GimpTileBackendTileManagerPrivate GimpTileBackendTileManagerPrivate;
 
 struct _GimpTileBackendTileManager
@@ -49,9 +49,11 @@ struct _GimpTileBackendTileManagerClass
 
 GType             gimp_tile_backend_tile_manager_get_type (void) G_GNUC_CONST;
 
-GeglTileBackend * gimp_tile_backend_tile_manager_new      (TileManager *tm);
+GeglTileBackend * gimp_tile_backend_tile_manager_new (TileManager *tm,
+                                                      gboolean     write);
 
-void              gimp_tile_backend_tile_manager_stats    (void);
+GeglBuffer      * gimp_tile_manager_get_gegl_buffer  (TileManager *tm,
+                                                      gboolean     write);
 
 G_END_DECLS
 

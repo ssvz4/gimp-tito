@@ -261,25 +261,25 @@ static const GimpEnumActionEntry view_zoom_actions[] =
 
   { "view-zoom-out", GTK_STOCK_ZOOM_OUT,
     NC_("view-zoom-action", "Zoom _Out"), "minus",
-    NC_("view-action", "Zoom out"),
+    NC_("view-zoom-action", "Zoom out"),
     GIMP_ACTION_SELECT_PREVIOUS, FALSE,
     GIMP_HELP_VIEW_ZOOM_OUT },
 
   { "view-zoom-in", GTK_STOCK_ZOOM_IN,
     NC_("view-zoom-action", "Zoom _In"), "plus",
-    NC_("view-action", "Zoom in"),
+    NC_("view-zoom-action", "Zoom in"),
     GIMP_ACTION_SELECT_NEXT, FALSE,
     GIMP_HELP_VIEW_ZOOM_IN },
 
   { "view-zoom-out-accel", GIMP_STOCK_CHAR_PICKER,
     NC_("view-zoom-action", "Zoom Out"), "KP_Subtract",
-    NC_("view-action", "Zoom out"),
+    NC_("view-zoom-action", "Zoom out"),
     GIMP_ACTION_SELECT_PREVIOUS, FALSE,
     GIMP_HELP_VIEW_ZOOM_OUT },
 
   { "view-zoom-in-accel", GIMP_STOCK_CHAR_PICKER,
     NC_("view-zoom-action", "Zoom In"), "KP_Add",
-    NC_("view-action", "Zoom in"),
+    NC_("view-zoom-action", "Zoom in"),
     GIMP_ACTION_SELECT_NEXT, FALSE,
     GIMP_HELP_VIEW_ZOOM_IN },
 
@@ -302,8 +302,20 @@ static const GimpRadioActionEntry view_zoom_explicit_actions[] =
     160000,
     GIMP_HELP_VIEW_ZOOM_IN },
 
+  { "view-zoom-16-1-accel", NULL,
+    NC_("view-zoom-action", "1_6:1  (1600%)"), "KP_5",
+    NC_("view-zoom-action", "Zoom 16:1"),
+    160000,
+    GIMP_HELP_VIEW_ZOOM_IN },
+
   { "view-zoom-8-1", NULL,
     NC_("view-zoom-action", "_8:1  (800%)"), "4",
+    NC_("view-zoom-action", "Zoom 8:1"),
+    80000,
+    GIMP_HELP_VIEW_ZOOM_IN },
+
+  { "view-zoom-8-1-accel", NULL,
+    NC_("view-zoom-action", "_8:1  (800%)"), "KP_4",
     NC_("view-zoom-action", "Zoom 8:1"),
     80000,
     GIMP_HELP_VIEW_ZOOM_IN },
@@ -314,14 +326,32 @@ static const GimpRadioActionEntry view_zoom_explicit_actions[] =
     40000,
     GIMP_HELP_VIEW_ZOOM_IN },
 
+  { "view-zoom-4-1-accel", NULL,
+    NC_("view-zoom-action", "_4:1  (400%)"), "KP_3",
+    NC_("view-zoom-action", "Zoom 4:1"),
+    40000,
+    GIMP_HELP_VIEW_ZOOM_IN },
+
   { "view-zoom-2-1", NULL,
     NC_("view-zoom-action", "_2:1  (200%)"), "2",
     NC_("view-zoom-action", "Zoom 2:1"),
     20000,
     GIMP_HELP_VIEW_ZOOM_IN },
 
+  { "view-zoom-2-1-accel", NULL,
+    NC_("view-zoom-action", "_2:1  (200%)"), "KP_2",
+    NC_("view-zoom-action", "Zoom 2:1"),
+    20000,
+    GIMP_HELP_VIEW_ZOOM_IN },
+
   { "view-zoom-1-1", GTK_STOCK_ZOOM_100,
     NC_("view-zoom-action", "_1:1  (100%)"), "1",
+    NC_("view-zoom-action", "Zoom 1:1"),
+    10000,
+    GIMP_HELP_VIEW_ZOOM_100 },
+
+  { "view-zoom-1-1-accel", GTK_STOCK_ZOOM_100,
+    NC_("view-zoom-action", "_1:1  (100%)"), "KP_1",
     NC_("view-zoom-action", "Zoom 1:1"),
     10000,
     GIMP_HELP_VIEW_ZOOM_100 },

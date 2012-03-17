@@ -452,12 +452,6 @@ gimp_image_window_finalize (GObject *object)
 {
   GimpImageWindowPrivate *private = GIMP_IMAGE_WINDOW_GET_PRIVATE (object);
 
-  if (private->menubar_manager)
-    {
-      g_object_unref (private->menubar_manager);
-      private->menubar_manager = NULL;
-    }
-
   if (private->shells)
     {
       g_list_free (private->shells);
