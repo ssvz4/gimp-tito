@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include <time.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
@@ -35,12 +36,16 @@
 
 #include "gimp-intl.h"
 
+#define MAX_HISTORY_ACTIONS 10
 
 static GtkWidget* setup_list(void);                  //creates results ui
 static gboolean search_dialog (void);                //builds the main ui
 static void key_released (GtkWidget *widget, 
                       GdkEventKey *event,
                       gpointer func_data);           //callback for key release event in entry
+gboolean on_focus_out (GtkWidget *widget,
+                       GdkEventFocus *event,
+                       gpointer data);
 static gboolean search( GtkAction *action, 
                         const gchar* keyword);       //searches through labels
 void search_display_results (const gchar *keyword);
@@ -50,7 +55,7 @@ static void add_to_list( const gchar *label,
 gboolean result_selected (GtkWidget * widget,
                       GdkEventKey* pKey,
                       gpointer func_data);           //callback for return key pressed on result
-void run_result_action(void);                        //resposible for carrying out action selected
+gboolean run_result_action(void);                        //resposible for carrying out action selected
 void row_activated ( GtkTreeView        *treeview,
                      GtkTreePath        *path,
                      GtkTreeViewColumn  *col,
@@ -61,55 +66,126 @@ static gboolean tito_action_view_accel_find_func ( GtkAccelKey *key,
                                                    gpointer     data);                     
 static void update_history(GtkAction *action);
 static void read_history(void);
+static void fill_history(void);
+int compare ( const void * a,
+              const void * b);
+gboolean initializer(void);
+void finalizer(void);
+static gboolean context_menu_invoked ( GtkWidget *widget,
+                                             GdkEvent  *event,
+                                             gpointer   user_data);
+static void preferences_dialog(void);            //builds the preferences dialog
+static void modify_position_spins(void);
+static void clear_history_button_clicked ( GtkButton *button,
+                                           gpointer   user_data);
+static void restore_defaults_button_clicked ( GtkButton *button,
+                                              gpointer   user_data);
+static void set_default_preferences(void);
+static void update_preferences(void);
+static void write_preferences(void);
+static void read_preferences(void);
+static void clear_history(void);
+static void set_prefereces_ui_values(void);
+static void context_menu(void);
+static void context_menu_handler( GtkMenuItem* menuitem,
+                                  gpointer *data);
+GimpUIManager     *manager;
+static GtkWidget  *dialog;
+static GtkWidget  *list;                             //view shown to the user
+static GtkWidget  *list_view;
+static GtkWidget  *keyword_entry;
+static GtkWidget  *specify_radio;
+static GtkWidget  *pos_x_hbox;
+static GtkWidget  *pos_y_hbox;
+static GtkWidget  *right_top_radio;
+static GtkWidget  *middle_radio;
+static GtkWidget  *pos_x_spin_button;
+static GtkWidget  *pos_y_spin_button;
+static GtkWidget  *no_of_results_spin_button;
+static GtkWidget  *width_spin_button;
+static GtkWidget  *autohide_check_button;
+static GtkWidget  *show_insensitive_check_button;
+static GtkWidget  *preferences_button;
+static gint       def_height=1;
+static gint       tmp_x, tmp_y;
+static gchar      *history_file_path;
+static gchar      *preference_file_path;
+static gint       cur_no_of_his_actions;
+static gboolean   first_time=TRUE;
+static GtkCellRenderer *cell2;
 
-GimpUIManager *manager;
-static GtkWidget *dialog;
-static GtkWidget *list;                             //view shown to the user
-static GtkWidget *list_view;
-static GtkWidget *keyword_entry;
-static gint def_height=1,r_height=200;
-static gfloat tito_width_perc=0.4,tito_top_perc=0.13;
 
-static enum {
-  RESULT_DATA,			// just 0, 1 and 2 for convenience
+ enum RES_COL {
+  RESULT_ICON,
+  RESULT_DATA,
   RESULT_ACTION,
+  IS_SENSITIVE,
   N_COL
 };
-  
-static struct HISTORY{    //sturcture for tito history
+
+static struct HISTORY {
   GtkAction* history_action;
   int count;
-}history[10]; 
+}history[MAX_HISTORY_ACTIONS]; 
+
+static struct HISTORY_ACTION_NAME{
+  char* action_name;
+  int   no;
+}name[MAX_HISTORY_ACTIONS];
+
+static struct PREFERENCES {
+  int POSITION;
+  float POSITION_X;
+  float POSITION_Y;
+  int NO_OF_RESULTS;
+  float WIDTH;
+  gboolean AUTO_HIDE;
+  gboolean SHOW_INSENSITIVE;
+}PREF;
 
 GtkWidget *
 tito_dialog_create (void)
 {
+  if(!initializer())
+    g_message("Tito initializer failed");
   search_dialog();
-  gtk_accel_map_change_entry ("<Actions>/dialogs/dialogs-tito",'?',GDK_SHIFT_MASK,FALSE);
-  read_history();
   return dialog;
 }
 
 static GtkWidget* 
 setup_list(void)
 {
-  gint wid1=200;
+  gint wid1=100;
   GtkWidget *sc_win;
   GtkListStore *store; // holds all objects to be displayed in the list
-  GtkCellRenderer *cell;
-  GtkTreeViewColumn *column;
+  GtkCellRenderer *cell1;
+  GtkTreeViewColumn *column1, *column2;
 
   sc_win= gtk_scrolled_window_new(NULL, NULL);
-  store=gtk_list_store_new(N_COL, G_TYPE_STRING, GTK_TYPE_ACTION);
+  store=gtk_list_store_new(N_COL, G_TYPE_STRING, G_TYPE_STRING, GTK_TYPE_ACTION,G_TYPE_BOOLEAN);
   list=gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
   gtk_tree_view_set_headers_visible (GTK_TREE_VIEW(list),FALSE);
-  cell =gtk_cell_renderer_text_new();
-  column=gtk_tree_view_column_new_with_attributes(NULL,
-                                                  cell,
-                                                  "text", RESULT_DATA,
+  
+  //set up column 1
+  cell1 = gtk_cell_renderer_pixbuf_new ();
+  column1=gtk_tree_view_column_new_with_attributes(NULL,
+                                                  cell1,
+                                                  "stock_id", RESULT_ICON,
                                                   NULL);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(list),column);
-  gtk_tree_view_column_set_max_width(column,wid1);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(list),column1);
+  gtk_tree_view_column_add_attribute(column1, cell1, "sensitive", IS_SENSITIVE);
+  gtk_tree_view_column_set_min_width(column1,22);
+
+  //set up column 2
+  cell2 = gtk_cell_renderer_text_new();
+  column2=gtk_tree_view_column_new_with_attributes(NULL,
+                                                  cell2,
+                                                  "markup", RESULT_DATA,
+                                                  NULL);
+  gtk_tree_view_column_add_attribute(column2, cell2, "sensitive", IS_SENSITIVE);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(list),column2);
+  gtk_tree_view_column_set_max_width(column2,wid1);
+  
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sc_win),
                                  GTK_POLICY_NEVER,
                                  GTK_POLICY_AUTOMATIC);
@@ -124,47 +200,282 @@ setup_list(void)
 static gboolean
 search_dialog (void)
 {
-  GtkWidget *main_vbox;
-  gboolean run;
+  GtkWidget *main_vbox, *main_hbox;
+  GtkWidget *preferences_image;
   gdouble opacity=0.7;
 
-  dialog= gtk_dialog_new();
+  dialog= gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
-  //set no decoration, size, opacity, position of dialog
   gtk_window_set_decorated (GTK_WINDOW(dialog),FALSE);
-  gtk_window_set_default_size (GTK_WINDOW(dialog),tito_width_perc*gdk_screen_width(),def_height);
-  gtk_window_move (GTK_WINDOW(dialog),((1-tito_width_perc)/2)*gdk_screen_width(),tito_top_perc*gdk_screen_height());
+  gtk_window_set_default_size (GTK_WINDOW(dialog),(PREF.WIDTH/100)*gdk_screen_get_width(gdk_screen_get_default()),def_height);
+  gtk_window_move (GTK_WINDOW(dialog),PREF.POSITION_X,PREF.POSITION_Y);
   gtk_window_set_opacity (GTK_WINDOW(dialog),opacity);
-  gtk_window_set_transient_for (GTK_WINDOW(dialog),NULL);
- //main_vbox has keyword_entry
+  if(!PREF.AUTO_HIDE)
+    gtk_window_set_keep_above(GTK_WINDOW(dialog),TRUE);
+
   main_vbox = gtk_vbox_new (FALSE, 2);
-  gtk_container_add (GTK_CONTAINER (GTK_VBOX (gtk_dialog_get_content_area(GTK_DIALOG(dialog)))), main_vbox);
+  gtk_container_add (GTK_CONTAINER (dialog), main_vbox);
   gtk_widget_show (main_vbox);
 
+  main_hbox = gtk_hbox_new (FALSE, 2);
+  gtk_box_pack_start(GTK_BOX(main_vbox),main_hbox,FALSE,TRUE,0);  
+  gtk_widget_show (main_hbox);
+  
   keyword_entry = gtk_entry_new();
+  gtk_entry_set_has_frame(GTK_ENTRY(keyword_entry),FALSE);
+  gtk_entry_set_icon_from_stock(GTK_ENTRY(keyword_entry),GTK_ENTRY_ICON_PRIMARY,GTK_STOCK_FIND);
   gtk_widget_show (keyword_entry);
-  gtk_box_pack_start(GTK_BOX(main_vbox),keyword_entry,FALSE,TRUE,0);
-/*  gtk_container_add (GTK_CONTAINER (main_vbox ),keyword_entry);   */
+  gtk_box_pack_start(GTK_BOX(main_hbox),keyword_entry,TRUE,TRUE,0);
 
-  //set up list view and add results stuff
+  preferences_image = gtk_image_new_from_stock (GTK_STOCK_PROPERTIES, GTK_ICON_SIZE_MENU);
+  preferences_button = gtk_button_new();
+  gtk_button_set_image (GTK_BUTTON(preferences_button),preferences_image);
+  gtk_widget_show (preferences_image);
+  gtk_widget_show (preferences_button);
+  gtk_box_pack_end(GTK_BOX(main_hbox),preferences_button,FALSE,TRUE,0);
+  
   list_view = setup_list();
   gtk_box_pack_start(GTK_BOX(main_vbox),list_view,TRUE,TRUE,0);
 
-  /*events*****************************************************************************************************/
 
-  //for entry in keyword_entry
-  gtk_widget_set_events(dialog, GDK_KEY_PRESS_MASK);
   gtk_widget_set_events(dialog, GDK_KEY_RELEASE_MASK);
-  g_signal_connect (keyword_entry, "key-release-event", G_CALLBACK (key_released), NULL);
-
-  //for enter pressed in list_view
-  g_signal_connect(list, "key_press_event", G_CALLBACK(result_selected), NULL);
+  gtk_widget_set_events(dialog, GDK_KEY_PRESS_MASK);
+  gtk_widget_set_events(dialog, GDK_BUTTON_PRESS_MASK);
+  gtk_widget_set_events(preferences_button, GDK_BUTTON_PRESS_MASK);
   
-  /*end of events**********************************************************************************************/
+  g_signal_connect (keyword_entry, "key-release-event", G_CALLBACK (key_released), NULL);
+  g_signal_connect (list, "key_press_event", G_CALLBACK (result_selected), NULL);
+  g_signal_connect (preferences_button, "clicked", G_CALLBACK(context_menu_invoked),NULL);
+  g_signal_connect (dialog, "focus-out-event", G_CALLBACK (on_focus_out), NULL);
 
   gtk_widget_show (dialog);
-  run = (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_OK);
-  return run;
+  return TRUE;
+}
+
+static gboolean
+context_menu_invoked ( GtkWidget *widget,
+                             GdkEvent  *event,
+                             gpointer   user_data)
+{ 
+  context_menu();
+  return TRUE;
+}
+
+static void
+preferences_dialog(void)
+{
+  GtkWidget   *pref_dialog;
+  GtkWidget   *top_hbox;
+
+  GtkWidget   *position_frame;
+  GtkWidget   *position_vbox;
+  GtkWidget   *pos_x_label;
+  GtkWidget   *pos_y_label;  
+  GtkWidget   *specify_alignment_x;
+  GtkWidget   *specify_alignment_y;
+
+  GtkWidget   *display_frame;
+  GtkWidget   *display_vbox;
+  GtkWidget   *no_of_results_hbox;
+  GtkWidget   *width_hbox;  
+  GtkWidget   *no_of_results_label;
+  GtkWidget   *width_label;
+  
+  GtkWidget   *bottom_hbox;
+  GtkWidget   *clear_history_button;
+  GtkWidget   *restore_defaults_button;
+  
+  pref_dialog = gtk_dialog_new_with_buttons ( "Tito preferences",
+                                              NULL,
+                                              GTK_DIALOG_MODAL,
+                                              GTK_STOCK_OK,
+                                              GTK_RESPONSE_ACCEPT,
+                                              GTK_STOCK_CANCEL,
+                                              GTK_RESPONSE_REJECT,
+                                              NULL); 
+
+  gtk_window_set_position (GTK_WINDOW(pref_dialog), GTK_WIN_POS_CENTER_ALWAYS);
+  top_hbox = gtk_hbox_new (FALSE,10);
+  gtk_box_pack_start (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(pref_dialog))), top_hbox, FALSE, FALSE, 2);
+  
+  //Position preferences
+  position_frame = gtk_frame_new("Postion");
+  position_vbox = gtk_vbox_new(TRUE,2);
+
+  gtk_frame_set_shadow_type (GTK_FRAME(position_frame), GTK_SHADOW_ETCHED_IN);
+
+  right_top_radio = gtk_radio_button_new_with_label(NULL,"Right-Top");
+  middle_radio = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (right_top_radio), "Middle");
+  specify_radio = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (right_top_radio), "Specify");
+  pos_x_hbox = gtk_hbox_new(FALSE, 1);
+  pos_y_hbox = gtk_hbox_new(FALSE, 1);
+  specify_alignment_x = gtk_alignment_new (1,0,0,0);
+  specify_alignment_y = gtk_alignment_new (1,0,0,0);
+  pos_x_label = gtk_label_new("x:");
+  pos_y_label = gtk_label_new("y:");      
+  pos_x_spin_button = gtk_spin_button_new_with_range (0, 100-PREF.WIDTH, 1);
+  pos_y_spin_button = gtk_spin_button_new_with_range (0, 50, 1);
+
+  gtk_box_pack_start (GTK_BOX(top_hbox), position_frame, FALSE, FALSE, 2);
+  gtk_container_add (GTK_CONTAINER(position_frame), position_vbox);
+      gtk_box_pack_start (GTK_BOX (position_vbox), right_top_radio, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (position_vbox), middle_radio, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (position_vbox), specify_radio, TRUE, TRUE, 2);
+
+      gtk_box_pack_start (GTK_BOX (position_vbox), specify_alignment_x, TRUE, TRUE, 1);
+          gtk_container_add (GTK_CONTAINER (specify_alignment_x), pos_x_hbox);
+              gtk_box_pack_start (GTK_BOX (pos_x_hbox),pos_x_label, TRUE, TRUE, 1);
+              gtk_box_pack_start (GTK_BOX (pos_x_hbox),pos_x_spin_button, TRUE, TRUE, 1);              
+
+      gtk_box_pack_start (GTK_BOX (position_vbox), specify_alignment_y, TRUE, TRUE, 1);
+          gtk_container_add (GTK_CONTAINER (specify_alignment_y), pos_y_hbox);
+              gtk_box_pack_start (GTK_BOX (pos_y_hbox),pos_y_label, TRUE, TRUE, 1);
+              gtk_box_pack_start (GTK_BOX (pos_y_hbox),pos_y_spin_button, TRUE, TRUE, 1);              
+
+  //Display preferences
+  display_frame = gtk_frame_new("Display");
+  display_vbox = gtk_vbox_new(TRUE,2);
+ 
+  gtk_frame_set_shadow_type (GTK_FRAME(display_frame), GTK_SHADOW_ETCHED_IN);
+  
+  no_of_results_hbox = gtk_hbox_new(FALSE,2);
+  width_hbox = gtk_hbox_new(FALSE,2);
+  no_of_results_label = gtk_label_new("Results height:");
+  no_of_results_spin_button = gtk_spin_button_new_with_range(2,10,1);
+  width_label = gtk_label_new("Tito Width:");
+  width_spin_button = gtk_spin_button_new_with_range(20,60,1);
+  autohide_check_button = gtk_check_button_new_with_label("Autohide");
+  show_insensitive_check_button = gtk_check_button_new_with_label("Show inert actions");
+  clear_history_button = gtk_button_new_with_label ("Clear history");
+  restore_defaults_button = gtk_button_new_with_label ("Restore defaults");
+
+  gtk_box_pack_start (GTK_BOX(top_hbox), display_frame, FALSE, FALSE, 2);
+  gtk_container_add (GTK_CONTAINER(display_frame), display_vbox);
+      gtk_box_pack_start (GTK_BOX (display_vbox), no_of_results_hbox, TRUE, TRUE, 2);
+          gtk_box_pack_start (GTK_BOX (no_of_results_hbox), no_of_results_label, TRUE, TRUE, 2);
+          gtk_box_pack_start (GTK_BOX (no_of_results_hbox), no_of_results_spin_button, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (display_vbox), width_hbox, TRUE, TRUE, 2);          
+          gtk_box_pack_start (GTK_BOX (width_hbox), width_label, TRUE, TRUE, 2);          
+          gtk_box_pack_start (GTK_BOX (width_hbox), width_spin_button, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (display_vbox), autohide_check_button, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (display_vbox), show_insensitive_check_button, TRUE, TRUE, 2);
+
+  
+  //Clear and restore
+  bottom_hbox = gtk_hbox_new(TRUE,2);
+  gtk_box_pack_start (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(pref_dialog))), bottom_hbox, FALSE, FALSE, 2);
+    gtk_box_pack_start (GTK_BOX (bottom_hbox), clear_history_button, TRUE, TRUE, 2);
+    gtk_box_pack_start (GTK_BOX (bottom_hbox), restore_defaults_button, TRUE, TRUE, 2);
+
+  gtk_widget_show (top_hbox);
+
+  gtk_widget_show (position_frame);
+  gtk_widget_show (position_vbox);
+  gtk_widget_show (right_top_radio);
+  gtk_widget_show (middle_radio);
+  gtk_widget_show (specify_radio);
+  gtk_widget_show (specify_alignment_x);
+  gtk_widget_show (specify_alignment_y);
+  gtk_widget_show (pos_x_hbox);
+  gtk_widget_show (pos_y_hbox);
+  gtk_widget_show (pos_x_label);
+  gtk_widget_show (pos_y_label);
+  gtk_widget_show (pos_x_spin_button);
+  gtk_widget_show (pos_y_spin_button);
+                                                                
+  gtk_widget_show (display_frame);
+  gtk_widget_show (display_vbox);
+  gtk_widget_show (no_of_results_hbox);
+  gtk_widget_show (width_hbox);
+  gtk_widget_show (no_of_results_label);
+  gtk_widget_show (width_label);
+  gtk_widget_show (no_of_results_spin_button);
+  gtk_widget_show (width_spin_button);
+  gtk_widget_show (autohide_check_button);
+  gtk_widget_show (show_insensitive_check_button);
+
+  gtk_widget_show (bottom_hbox);
+  gtk_widget_show (clear_history_button);
+  gtk_widget_show (restore_defaults_button);
+
+  set_prefereces_ui_values();
+  gtk_widget_show (pref_dialog);
+
+  g_signal_connect (right_top_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
+  g_signal_connect (middle_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
+  g_signal_connect (specify_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
+  g_signal_connect (clear_history_button, "clicked", G_CALLBACK (clear_history_button_clicked), NULL);
+  g_signal_connect (restore_defaults_button, "clicked", G_CALLBACK (restore_defaults_button_clicked), NULL);
+
+  if(gtk_dialog_run (GTK_DIALOG (pref_dialog)) == GTK_RESPONSE_ACCEPT)
+    update_preferences();
+
+  gtk_widget_destroy (pref_dialog);
+}
+
+static void
+set_prefereces_ui_values(void)
+{
+  if( PREF.POSITION == 0)
+    gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(right_top_radio), TRUE);
+  else if( PREF.POSITION == 1)
+    gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(middle_radio), TRUE);
+  else
+      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(specify_radio), TRUE);
+
+  modify_position_spins();
+
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(no_of_results_spin_button), (gdouble)PREF.NO_OF_RESULTS);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(width_spin_button), (gdouble)PREF.WIDTH);  
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autohide_check_button), PREF.AUTO_HIDE);    
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_insensitive_check_button), PREF.SHOW_INSENSITIVE);
+  
+}
+
+static void
+modify_position_spins(void)
+{
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(specify_radio)))
+    {
+      gtk_widget_set_sensitive(pos_x_hbox, TRUE);
+      gtk_widget_set_sensitive(pos_y_hbox, TRUE);
+    }
+  else
+    {
+      gtk_widget_set_sensitive(pos_x_hbox, FALSE);
+      gtk_widget_set_sensitive(pos_y_hbox, FALSE);
+    }
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(pos_x_spin_button),
+                            (gdouble)(PREF.POSITION_X/gdk_screen_get_width(gdk_screen_get_default())*100));
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(pos_y_spin_button),
+                            (gdouble)(PREF.POSITION_Y/gdk_screen_get_height(gdk_screen_get_default())*100));
+  gtk_spin_button_set_range (GTK_SPIN_BUTTON(pos_x_spin_button), 
+                            (gdouble)0, (gdouble)( 100-gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(width_spin_button))));
+}                            
+
+static void
+clear_history_button_clicked ( GtkButton *button,
+                               gpointer   user_data) 
+{
+  clear_history();
+}
+
+static void
+restore_defaults_button_clicked ( GtkButton *button,
+                               gpointer   user_data) 
+{
+  set_default_preferences();
+  set_prefereces_ui_values();
+}
+
+gboolean
+on_focus_out (GtkWidget *widget,
+              GdkEventFocus *event,
+              gpointer data)
+{
+  if(!gtk_widget_is_focus(preferences_button))
+    finalizer();
+  return TRUE;
 }
 
 
@@ -176,29 +487,46 @@ key_released( GtkWidget *widget,
   const gchar *entry_text;
   entry_text = gtk_editable_get_chars(GTK_EDITABLE(widget),0,-1);
 
-  //close if Escape pressed
   switch (event->keyval)
   {
     case GDK_Escape: 
     {
-      gtk_widget_destroy(dialog);
+      finalizer();
+      return;
+    }
+    case GDK_Return:
+    {
+      run_result_action();
       return;
     }
   }
   
-  //shows the results if key pressed and hides the results if entry is empty
   if(strcmp(entry_text,"")!=0)
-  {
-    gtk_window_resize(GTK_WINDOW(dialog),tito_width_perc*gdk_screen_width(),r_height);
-    gtk_widget_show_all(list_view);
-  }
-  else
-  {
-    gtk_widget_hide(list_view);
-    gtk_window_resize(GTK_WINDOW(dialog),tito_width_perc*gdk_screen_width(),def_height);
-  } 
-  gtk_list_store_clear (GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(list))));
-  search_display_results(entry_text);
+    {
+      gtk_window_resize(GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,
+                       (PREF.NO_OF_RESULTS*40+100));
+      gtk_list_store_clear (GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(list))));
+      gtk_widget_show_all(list_view);
+      search_display_results(entry_text);
+      gtk_tree_selection_select_path ( gtk_tree_view_get_selection(GTK_TREE_VIEW(list)),
+                                       gtk_tree_path_new_from_string("0"));
+    }
+  else if(strcmp(entry_text,"")==0 && (event->keyval == GDK_Down) )
+    {
+      gtk_window_resize(GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,
+                       (PREF.NO_OF_RESULTS*40+100));
+      gtk_list_store_clear (GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(list))));
+      gtk_widget_show_all(list_view);
+      search_display_results(" ");
+      gtk_tree_selection_select_path ( gtk_tree_view_get_selection(GTK_TREE_VIEW(list)),
+                                       gtk_tree_path_new_from_string("0"));
+
+    }
+  else    
+    {
+      gtk_widget_hide(list_view);
+      gtk_window_resize (GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,def_height);
+    }
 }
 
 gboolean
@@ -207,46 +535,43 @@ result_selected ( GtkWidget * widget,
                   gpointer func_data)
 {
   if (pKey->type == GDK_KEY_PRESS)
-  {
-    switch (pKey->keyval)
     {
-      case GDK_Return:
-      {
-        //if enter pressed then get selection
-			  gtk_widget_hide(dialog);
-			  run_result_action();
- 			  gtk_widget_destroy(dialog);
-        break;
-    	}
-    	case GDK_Escape: 
-      {
-        gtk_widget_destroy(dialog);
-        return TRUE;
-      }
-      case GDK_Up:
-      {
-        //check if first reults is selected
-        GtkTreeSelection *selection;
-        GtkTreeModel     *model;
-        GtkTreeIter       iter;
-        GtkTreePath       *path;
-        /* This will only work in single or browse selection mode! */
-        selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(list));
-        gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
-      
-        if (gtk_tree_selection_get_selected(selection, &model, &iter))
+      switch (pKey->keyval)
         {
-          path = gtk_tree_model_get_path(model,&iter);
-          if(strcmp(gtk_tree_path_to_string(path),"0")==0)
-           { 
-             gtk_widget_grab_focus((GTK_WIDGET(keyword_entry)));
-           }
+          case GDK_Return:
+            {
+			        run_result_action();
+              break;
+    	      }
+        	case GDK_Escape: 
+            {
+              finalizer();
+              return TRUE;
+            }
+          case GDK_Up:
+            {
+              GtkTreeSelection *selection;
+              GtkTreeModel     *model;
+              GtkTreeIter       iter;
+              GtkTreePath       *path;
+              selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(list));
+              gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
+              
+              if (gtk_tree_selection_get_selected(selection, &model, &iter))
+                {
+                  path = gtk_tree_model_get_path(model,&iter);
+                  if(strcmp(gtk_tree_path_to_string(path),"0")==0)
+                    { 
+                      gtk_widget_grab_focus((GTK_WIDGET(keyword_entry)));
+                      return TRUE;
+                    }
+                }
+            }
         }
-      }
     }
-  }
   return FALSE;
 }
+
 
 void
 row_activated ( GtkTreeView        *treeview,
@@ -254,9 +579,7 @@ row_activated ( GtkTreeView        *treeview,
                 GtkTreeViewColumn  *col,
                 gpointer            userdata)
 {
-  gtk_widget_hide(dialog);
 	run_result_action();
- 	gtk_widget_destroy(dialog);
 }
   
 
@@ -267,79 +590,87 @@ add_to_list( const gchar *label,
 {
   GtkListStore *store;
   GtkTreeIter iter;
-  char *desc = (char *) tooltip;
-  char *labe = (char *) label;
-  char *data = (char *) malloc(1024);
-  gchar *accel_string;
-  if(data!=NULL)
+  gchar *markuptxt;
+  gchar *accel_string = find_accel_label (action);
+  const gchar *stock_id = gtk_action_get_stock_id (action);
+  char *data = g_new(char,1024);
+  char shortcut[1024] = "";
+  
+  if(data==NULL)
+    return;
+  if(strstr(label, "bruce")!=NULL)
+    return;
+    
+  if(GTK_IS_TOGGLE_ACTION(action))
     {
-      strcpy(data,labe);
-
-      if(!gtk_action_get_sensitive(action))
-        {
-          return;
-        }
-
-      //check if its a toggle action
-      if(GTK_IS_TOGGLE_ACTION(action))
-        {
-          if(gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action)))
-            strcat(data, " [On]");
-          else
-            strcat(data, " [Off]");
-          //add toggle status to data
-        }
-        
-        accel_string=find_accel_label(action);
-        if(accel_string!=NULL)
-        {
-          strcat(data, " [");
-          strcat(data, accel_string);
-          strcat(data, "]");          
-        }
-
-      if(desc!=NULL)
-        { 
-          strcat(data,"\n ");
-          strcat(data,desc);
-        }
-
-
-      store= GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(list)));
-      gtk_list_store_append(store, &iter);
-      gtk_list_store_set(store, &iter, RESULT_DATA, data, RESULT_ACTION, action, -1);
-      free(data);
+      if(gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action)))
+        stock_id = GTK_STOCK_OK;
+      else
+        stock_id = GTK_STOCK_NO;
     }
+ 
+  if(accel_string==NULL)
+      strcpy(shortcut,"");
+  else if(strchr(accel_string,'<')!=NULL)
+      strcpy(shortcut,"");  
+  else
+    {
+      strcpy(shortcut," | ");
+      strcat(shortcut,accel_string);
+    }
+
+  if(tooltip==NULL)
+      strcpy(data,"");
+  else if(strchr(tooltip, '<')!=NULL)
+       strcpy(data,""); 
+  else
+    {
+      strcpy(data,"\n");
+      strcat(data,tooltip);
+    }
+      
+  markuptxt = g_strdup_printf("%s<small>%s<span weight='light'>%s</span></small>",
+                               label, shortcut, data);
+  store= GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(list)));
+  gtk_list_store_append(store, &iter);
+  gtk_list_store_set(store, &iter,
+                     RESULT_ICON, stock_id,
+                     RESULT_DATA, markuptxt,
+                     RESULT_ACTION, action,
+                     IS_SENSITIVE, gtk_action_get_sensitive(action),
+                     -1);
+  g_free(data);
 }
 
-
-void
+gboolean
 run_result_action(void)
 {
   GtkTreeSelection *selection;
   GtkTreeModel     *model;
   GtkTreeIter       iter;
   
-    /* This will only work in single or browse selection mode! */
   selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(list));
   gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
   if (gtk_tree_selection_get_selected(selection, &model, &iter))
-  {
-    gchar *name;
-    GtkAction *action;
-    gtk_tree_model_get (model, &iter, RESULT_DATA, &name, -1);
-    gtk_tree_model_get (model, &iter, RESULT_ACTION, &action, -1);
-    gtk_action_activate(action);
-    update_history(action);
-    g_free(name);
-  }
+    {
+      GtkAction *action;
+      gtk_tree_model_get (model, &iter, RESULT_ACTION, &action, -1);
+      if(!gtk_action_get_sensitive(action))
+        return FALSE;
+      
+      if(PREF.AUTO_HIDE)
+  	    gtk_widget_hide(dialog);
+      gtk_action_activate(action);
+      finalizer();
+      update_history(action);
+    }
+  return TRUE;
 }
 
 
 void
 search_display_results (const gchar *keyword)
 {
-  //iterate through all actions
   GList             *list;
   int i = 0;  
   manager= gimp_ui_managers_from_name ("<Image>")->data;
@@ -347,7 +678,7 @@ search_display_results (const gchar *keyword)
     return;
 	
 	//search in history
-	for(i=0;i<10;i++)
+	for(i=0;i<cur_no_of_his_actions;i++)
   	{
   	  if(history[i].history_action!=NULL)
 	    {
@@ -356,8 +687,6 @@ search_display_results (const gchar *keyword)
                      gtk_action_get_tooltip (history[i].history_action),
                      history[i].history_action );	        
 	    }
-/*	    else*/
-/*	      g_message("failed to search in history");*/
 	  }
 
   //for every action group
@@ -379,53 +708,141 @@ search_display_results (const gchar *keyword)
         {
           GtkAction       *action        = list2->data;
           const gchar     *name;
+          gboolean        is_redundant = FALSE;
           name         = gtk_action_get_name (action);
 
             
           //exclude menus and popups
           if (strstr (name, "-menu")  ||
               strstr (name, "-popup") ||
+              strstr (name,"context") ||
               name[0] == '<')
             continue;
+	       
+	        if( !gtk_action_get_sensitive(action) && !(PREF.SHOW_INSENSITIVE) )
+		        continue;
 
-          for(i=0;i<10;i++)
+          for(i=0;i<cur_no_of_his_actions;i++)
             {
               if(history[i].history_action!=NULL)
-                if(strcmp(gtk_action_get_name(history[i].history_action),name)==0)
-                  continue;
+                {
+                  if(strcmp(gtk_action_get_name(history[i].history_action),name)==0)
+                    {
+                      is_redundant = TRUE;
+                      break;
+                    }
+                }
             }
+          
+          if(is_redundant)
+            continue;
             
           if(search(action,keyword))
-       	  {
-       	    //check if action-name is one out of 10 history_action
-            add_to_list( gimp_strip_uline (gtk_action_get_label (action)),
-                         gtk_action_get_tooltip (action),
-                         action);
-          }
+       	    {
+	  
+              add_to_list( gimp_strip_uline (gtk_action_get_label (action)),
+                           gtk_action_get_tooltip (action),
+                           action);
+            }
         }
-    g_list_free (actions);
+      g_list_free (actions);
    }
+}
+
+static void fill_history(void)
+{
+  GList             *list;
+  int i = 0;  
+  manager= gimp_ui_managers_from_name ("<Image>")->data;
+  
+  for (list = gtk_ui_manager_get_action_groups (GTK_UI_MANAGER (manager));
+       list;
+       list = g_list_next (list))
+      {
+        GimpActionGroup *group = list->data;
+        GList           *actions;
+        GList           *list2;
+        
+         //get and sort actions
+         actions = gtk_action_group_list_actions (GTK_ACTION_GROUP (group));
+         actions = g_list_sort (actions, (GCompareFunc) gimp_action_name_compare);
+          
+         //for every action
+         for (list2 = actions; list2; list2 = g_list_next (list2))
+           {
+             GtkAction       *action        = list2->data;
+             const gchar     *action_name;
+             action_name        = gtk_action_get_name (action);
+                
+             //exclude menus and popups
+             if ( strstr (action_name, "-menu")  ||
+                  strstr (action_name, "-popup") ||
+                  action_name[0] == '<')
+                    continue;
+
+             for(i=0;i<cur_no_of_his_actions;i++)
+               {
+                 if(name[i].action_name!=NULL)
+                   {
+                     if(strcmp(name[i].action_name,action_name)==0)
+                       {
+                         history[i].history_action=action;
+                         history[i].count=name[i].no;
+                       }
+                    }
+                }
+            }
+        }
 }
 
 static gboolean
 search( GtkAction *action,
         const gchar* keyword)
 {
-	const gchar *label, *tooltip;
-  label        = gimp_strip_uline (gtk_action_get_label (action));
-  tooltip      = gtk_action_get_tooltip (action);
+  gchar *label, *tooltip, *key;
+  int i;
+  gchar* space_pos;
+  label =   g_new(gchar,1024);
+  key =     g_new(gchar,1024);
+  tooltip = g_new(gchar,1024);
 
-	if(strcasestr(label,keyword))
-		{
-		  return TRUE; 
-		}
-	else if(tooltip!=NULL && strcasestr(tooltip,keyword))
-	  {
-	  	return TRUE; 
-  	}
+  strcpy(label, gimp_strip_uline (gtk_action_get_label (action)));
+  strcpy(key,keyword);
+
+  for(i=0;i<strlen(label);i++)
+    label[i]=tolower(label[i]);
+  for(i=0;i<strlen(key);i++)
+    key[i]=tolower(key[i]);
+  if(strlen(key)==2)
+    {
+      space_pos=strchr(label,' ');
+      if(space_pos!=NULL)
+        {  
+          space_pos++;
+          if(key[0]==label[0] && key[1]==*space_pos)
+              return TRUE;
+        }
+    }
+  if(strstr(label,key))
+	    return TRUE; 
+  if(strlen(key)>2)
+  {
+    if(gtk_action_get_tooltip(action)==NULL)
+      return FALSE;
+      
+    strcpy(tooltip,gtk_action_get_tooltip (action));
+    for(i=0;i<strlen(tooltip);i++)
+      tooltip[i]=tolower(tooltip[i]);
+
+    if(strstr(tooltip,key))
+      	return TRUE; 
+  }
+  g_free(label);
+  g_free(key);
+  g_free(tooltip);
+
   return FALSE;
 }
-
 
 static gboolean
 tito_action_view_accel_find_func (GtkAccelKey *key,
@@ -456,10 +873,10 @@ find_accel_label( GtkAction *action)
      if (key            &&
          key->accel_key &&
          key->accel_flags & GTK_ACCEL_VISIBLE)
-      {
-        accel_key  = key->accel_key;
-        accel_mask = key->accel_mods;
-      }
+       {
+         accel_key  = key->accel_key;
+         accel_mask = key->accel_mods;
+       }
    }
   accel_string = gtk_accelerator_get_label (accel_key, accel_mask);
   if(strcmp(accel_string,""))
@@ -468,59 +885,248 @@ find_accel_label( GtkAction *action)
   return NULL;    
 }
 
-static void read_history(void)
+static void
+read_history(void)
 {
   int i;
   FILE *fp;
-  fp= fopen("history_tito.txt","rb");
-    if(fp==NULL)
-      {
-          g_message("No history to read");
-          return ;
-      }
-    for(i=0;i<10;i++)
-       {
-          if(fread(&history[i],sizeof(history[i]),1,fp)==0)
-            {
-              g_message("nulls assigned");
-              history[i].history_action=NULL;
-              history[i].count=0;
-            }
-       }
+  cur_no_of_his_actions=0;
+  
+  fp= fopen(history_file_path,"r");
+  if(fp==NULL)
+	    return;
+
+  for(i=0;i<MAX_HISTORY_ACTIONS;i++)
+    {
+      if(fscanf(fp,"%s  %d",name[i].action_name,&name[i].no) == EOF)
+        break;
+      cur_no_of_his_actions++;
+    }
   fclose(fp);
+  fill_history();
 }
 
-static void update_history(GtkAction *action)
+static void
+update_history(GtkAction *action)
 {
   int i;
   FILE *fp;
   gboolean is_present=FALSE;
-  int min_pos=0;
-  fp= fopen("history_tito.txt","wb");
-    if(fp==NULL)
-      {
-          g_message("unable to open history file to write");
-          return ;
-      }
-    for(i=0;i<10;i++)
-      {
-         if(action==history[i].history_action)
-          {
-            history[i].count++;
-            is_present=TRUE;
-            break ;
-          }
-         if(history[min_pos].count > history[i].count)
-           min_pos=i;
-      }
-      if(!is_present)
-       {
-         history[min_pos].history_action=action;
-         history[min_pos].count=1;
-       }    
-   for(i=0;i<10;i++)
-       {
-           fwrite(&history[i],sizeof(history[i]),1,fp);
-       }
+  
+  fp= fopen(history_file_path,"w");
+  if(fp==NULL)
+    {
+      g_message("Unable to open history file to write");
+     return;
+    }
+    
+  //check if already in history var
+  for(i=0;i<cur_no_of_his_actions;i++)
+    {
+      if(strcmp(gtk_action_get_name(action),gtk_action_get_name(history[i].history_action))==0)
+        {
+          history[i].count++;
+          is_present=TRUE;
+          break;
+        }
+    }
+    
+  //assign action to history var
+  if(!is_present)
+    {
+      history[cur_no_of_his_actions].history_action = action;
+      history[cur_no_of_his_actions++].count=1;
+    }
+        
+  //sort history according to count
+  qsort (history, cur_no_of_his_actions, sizeof(struct HISTORY), compare);
+
+  //write history vars to file  
+  for(i=0;i<cur_no_of_his_actions;i++)
+    {
+      if(history[i].history_action != NULL)
+          fprintf(fp,"%s  %d \n",gtk_action_get_name(history[i].history_action),
+                                   history[i].count);
+    }
+ 
   fclose(fp);
 }
+
+int compare ( const void * a,
+              const void * b)
+{
+  struct HISTORY *p = (struct HISTORY *)a;
+  struct HISTORY *q = (struct HISTORY *)b;
+  return (q->count - p->count);
+}
+
+void
+finalizer(void)
+{
+  if(!PREF.AUTO_HIDE)
+    {
+      gtk_widget_hide(list_view);
+      gtk_window_resize (GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,def_height);
+      gtk_entry_set_text(GTK_ENTRY(keyword_entry),"");
+      gtk_widget_grab_focus(keyword_entry);
+    }
+  else
+    gtk_widget_destroy(dialog);
+}
+
+gboolean
+initializer(void)
+{
+  int i=0;
+  //initialize history_file_path
+  if(first_time)
+  {
+    history_file_path= g_new(gchar, 50);
+    strcpy(history_file_path,(gchar*)gimp_sysconf_directory());
+    
+    preference_file_path= g_new(gchar,50);
+    strcpy(preference_file_path,(gchar*)gimp_sysconf_directory());
+    
+    strcat(history_file_path,"/history_tito");
+    strcat(preference_file_path,"/preferences_tito");
+
+    for(i=0;i<MAX_HISTORY_ACTIONS;i++)
+      {
+        name[i].action_name = g_new(char, 50);
+        strcpy(name[i].action_name,"");
+        name[i].no=0;
+      }
+    first_time=FALSE;
+  }
+  read_preferences();
+  read_history();
+  gtk_accel_map_change_entry ("<Actions>/dialogs/dialogs-tito",'?',GDK_SHIFT_MASK,FALSE);
+  return TRUE;
+}
+
+static void 
+clear_history(void)
+{
+  FILE *fp;
+  fp = fopen(history_file_path,"w"); 
+  if(fp == NULL)
+    {
+	    g_message("file not created");
+	    return;
+    }
+  fclose(fp);
+}
+
+static void 
+set_default_preferences(void)
+{
+ PREF.POSITION = 0;
+ PREF.WIDTH = 40;
+ PREF.POSITION_X = (1-0.4)*gdk_screen_get_width(gdk_screen_get_default());
+ PREF.POSITION_Y = 0.04*gdk_screen_get_height(gdk_screen_get_default());
+ PREF.NO_OF_RESULTS = 4;
+ PREF.AUTO_HIDE = TRUE;
+ PREF.SHOW_INSENSITIVE = TRUE;	
+ write_preferences();
+}
+
+
+static void
+update_preferences(void)
+{
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(right_top_radio)))
+    PREF.POSITION = 0;
+  else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(middle_radio)))
+    PREF.POSITION = 1;
+  else
+    {
+      PREF.POSITION = 2;
+      tmp_x = (gfloat) gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pos_x_spin_button));
+      tmp_y = (gfloat) gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pos_y_spin_button));      
+    }
+  
+  PREF.NO_OF_RESULTS     = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(no_of_results_spin_button));
+  PREF.WIDTH            = (gfloat)gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(width_spin_button));
+  PREF.AUTO_HIDE        = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(autohide_check_button));
+  PREF.SHOW_INSENSITIVE = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(show_insensitive_check_button));
+    
+  if(PREF.POSITION == 0)
+  {
+    PREF.POSITION_X = (1-0.4)*gdk_screen_get_width(gdk_screen_get_default());
+    PREF.POSITION_Y = 0.04*gdk_screen_get_height(gdk_screen_get_default());
+  }
+  else if(PREF.POSITION == 1)
+  {
+    PREF.POSITION_X = (gdk_screen_get_width(gdk_screen_get_default())- PREF.WIDTH*gdk_screen_get_width(gdk_screen_get_default())*.01)/2;
+    PREF.POSITION_Y = 0.2*gdk_screen_get_height(gdk_screen_get_default());
+  }
+  else
+ {
+    PREF.POSITION_X = tmp_x*gdk_screen_get_width(gdk_screen_get_default())/100;
+    PREF.POSITION_Y = tmp_y*gdk_screen_get_height(gdk_screen_get_default())/100;
+  }
+  write_preferences();
+  finalizer();
+}
+
+static void 
+write_preferences(void)
+{
+ FILE *fp;
+ fp=fopen(preference_file_path,"w");
+ if(fp == NULL)
+    return;
+ fprintf(fp,"%d %f %f %d %f %d %d", PREF.POSITION,PREF.POSITION_X, PREF.POSITION_Y,
+				    PREF.NO_OF_RESULTS, PREF.WIDTH, PREF.AUTO_HIDE,PREF.SHOW_INSENSITIVE);
+ fclose(fp);
+}
+
+static void 
+read_preferences(void)
+{
+ FILE *fp;
+ fp=fopen(preference_file_path,"r");
+ if(fp == NULL)
+   {
+     set_default_preferences();
+     return;
+   }
+ if(fscanf(fp,"%d %f %f %d %f %d %d", &PREF.POSITION, &PREF.POSITION_X, &PREF.POSITION_Y,
+				   &PREF.NO_OF_RESULTS, &PREF.WIDTH, &PREF.AUTO_HIDE, &PREF.SHOW_INSENSITIVE) == 0)
+	   set_default_preferences();
+ fclose(fp);
+}
+
+static void
+context_menu(void)
+{
+  GtkWidget *preferences_menuitem;
+  GtkWidget *close_menuitem;  
+  GtkWidget *context_menu;
+
+  context_menu = gtk_menu_new();
+  preferences_menuitem =  gtk_image_menu_item_new_from_stock(GTK_STOCK_PREFERENCES,NULL);
+  close_menuitem = gtk_image_menu_item_new_from_stock(GTK_STOCK_CLOSE,NULL);
+  
+  gtk_menu_shell_append (GTK_MENU_SHELL(context_menu), preferences_menuitem);
+  gtk_menu_shell_append (GTK_MENU_SHELL(context_menu), close_menuitem);  
+  
+  gtk_widget_show(context_menu);
+  gtk_widget_show(preferences_menuitem);
+  gtk_widget_show(close_menuitem);
+      
+  g_signal_connect (preferences_menuitem, "activate", G_CALLBACK (context_menu_handler), NULL);
+  g_signal_connect (close_menuitem, "activate", G_CALLBACK (context_menu_handler), NULL);  
+
+  gtk_menu_popup( GTK_MENU(context_menu), NULL, NULL, NULL, NULL, 0, gtk_get_current_event_time());
+}
+
+static void
+context_menu_handler( GtkMenuItem* menuitem,
+                      gpointer *data)
+{
+  if(strchr(gtk_menu_item_get_label(menuitem),'r')!=NULL)
+    preferences_dialog();
+  else
+    gtk_widget_destroy(dialog);
+}                      
