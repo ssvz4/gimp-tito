@@ -266,7 +266,7 @@ static const GimpStringActionEntry dialogs_toplevel_actions[] =
     "gimp-about-dialog",
     GIMP_HELP_ABOUT_DIALOG },
     
-    { "dialogs-tito", GTK_STOCK_ABOUT,
+    { "dialogs-tito", GTK_STOCK_FIND,
     NC_("dialogs-action", "_Tito"), NULL,       //label
     NC_("dialogs-action", "Menu search and more..."),//tooltip
     "gimp-tito-dialog",
