@@ -777,6 +777,7 @@ static void fill_history(void)
              //exclude menus and popups
              if ( strstr (action_name, "-menu")  ||
                   strstr (action_name, "-popup") ||
+                  strstr (action_name, "context") ||
                   action_name[0] == '<')
                     continue;
 
