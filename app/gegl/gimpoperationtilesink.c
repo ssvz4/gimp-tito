@@ -62,8 +62,7 @@ static void     gimp_operation_tile_sink_set_property (GObject       *object,
 
 static gboolean gimp_operation_tile_sink_process      (GeglOperation *operation,
                                                        GeglBuffer          *input,
-                                                       const GeglRectangle *result,
-                                                       gint                 level);
+                                                       const GeglRectangle *result);
 
 
 G_DEFINE_TYPE (GimpOperationTileSink, gimp_operation_tile_sink,
@@ -193,8 +192,7 @@ gimp_operation_tile_sink_set_property (GObject      *object,
 static gboolean
 gimp_operation_tile_sink_process (GeglOperation       *operation,
                                   GeglBuffer          *input,
-                                  const GeglRectangle *result,
-                                  gint                 level)
+                                  const GeglRectangle *result)
 {
   GimpOperationTileSink *self = GIMP_OPERATION_TILE_SINK (operation);
   static GStaticMutex    mutex = G_STATIC_MUTEX_INIT;
@@ -219,9 +217,8 @@ gimp_operation_tile_sink_process (GeglOperation       *operation,
     {
       GeglRectangle rect = { destPR.x, destPR.y, destPR.w, destPR.h };
 
-      gegl_buffer_get (input, &rect, 1.0,
-                       format, destPR.data, destPR.rowstride,
-                       GEGL_ABYSS_NONE);
+      gegl_buffer_get (input,
+                       1.0, &rect, format, destPR.data, destPR.rowstride);
     }
 
   g_static_mutex_lock (&mutex); 

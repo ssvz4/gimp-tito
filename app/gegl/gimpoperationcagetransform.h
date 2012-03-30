@@ -42,7 +42,7 @@ struct _GimpOperationCageTransform
   GimpCageConfig        *config;
   gboolean               fill_plain_color;
 
-  const Babl            *format_coords;
+  Babl                  *format_coords;
 
   gdouble                progress; /* bad hack */
 };

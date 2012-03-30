@@ -36,8 +36,7 @@ static gboolean gimp_operation_color_balance_process (GeglOperation       *opera
                                                       void                *in_buf,
                                                       void                *out_buf,
                                                       glong                samples,
-                                                      const GeglRectangle *roi,
-                                                      gint                 level);
+                                                      const GeglRectangle *roi);
 
 
 G_DEFINE_TYPE (GimpOperationColorBalance, gimp_operation_color_balance,
@@ -79,34 +78,35 @@ gimp_operation_color_balance_init (GimpOperationColorBalance *self)
 
 static inline gfloat
 gimp_operation_color_balance_map (gfloat  value,
-                                  gdouble lightness,
                                   gdouble shadows,
                                   gdouble midtones,
                                   gdouble highlights)
 {
-  /* Apply masks to the corrections for shadows, midtones and
-   * highlights so that each correction affects only one range.
-   * Those masks look like this:
-   *     ‾\___
-   *     _/‾\_
-   *     ___/‾
-   * whith ramps of width a at x = b and x = 1 - b.
-   *
-   * The sum of these masks equals 1 for x in 0..1, so applying the
-   * same correction in the shadows and in the midtones is equivalent
-   * to applying this correction on a virtual shadows_and_midtones
-   * range.
-   */
-  static const gdouble a = 0.25, b = 0.333, scale = 0.7;
+  gdouble low = 1.075 - 1.0 / (value / 16.0 + 1.0);
+  gdouble mid = 0.667 * (1.0 - SQR (value - 0.5));
+  gdouble shadows_add;
+  gdouble shadows_sub;
+  gdouble midtones_add;
+  gdouble midtones_sub;
+  gdouble highlights_add;
+  gdouble highlights_sub;
 
-  shadows    *= CLAMP ((lightness - b) / -a + 0.5, 0, 1) * scale;
-  midtones   *= CLAMP ((lightness - b) /  a + 0.5, 0, 1) *
-                CLAMP ((lightness + b - 1) / -a + 0.5, 0, 1) * scale;
-  highlights *= CLAMP ((lightness + b - 1) /  a + 0.5, 0, 1) * scale;
+  shadows_add    = low + 1.0;
+  shadows_sub    = 1.0 - low;
 
-  value += shadows;
-  value += midtones;
-  value += highlights;
+  midtones_add   = mid;
+  midtones_sub   = mid;
+
+  highlights_add = 1.0 - low;
+  highlights_sub = low + 1.0;
+
+  value += shadows * (shadows > 0 ? shadows_add : shadows_sub);
+  value = CLAMP (value, 0.0, 1.0);
+
+  value += midtones * (midtones > 0 ? midtones_add : midtones_sub);
+  value = CLAMP (value, 0.0, 1.0);
+
+  value += highlights * (highlights > 0 ? highlights_add : highlights_sub);
   value = CLAMP (value, 0.0, 1.0);
 
   return value;
@@ -117,8 +117,7 @@ gimp_operation_color_balance_process (GeglOperation       *operation,
                                       void                *in_buf,
                                       void                *out_buf,
                                       glong                samples,
-                                      const GeglRectangle *roi,
-                                      gint                 level)
+                                      const GeglRectangle *roi)
 {
   GimpOperationPointFilter *point  = GIMP_OPERATION_POINT_FILTER (operation);
   GimpColorBalanceConfig   *config = GIMP_COLOR_BALANCE_CONFIG (point->config);
@@ -137,28 +136,25 @@ gimp_operation_color_balance_process (GeglOperation       *operation,
       gfloat g_n;
       gfloat b_n;
 
-      GimpRGB rgb = { r, g, b};
-      GimpHSL hsl;
-
-      gimp_rgb_to_hsl (&rgb, &hsl);
-
-      r_n = gimp_operation_color_balance_map (r, hsl.l,
+      r_n = gimp_operation_color_balance_map (r,
                                               config->cyan_red[GIMP_SHADOWS],
                                               config->cyan_red[GIMP_MIDTONES],
                                               config->cyan_red[GIMP_HIGHLIGHTS]);
 
-      g_n = gimp_operation_color_balance_map (g, hsl.l,
+      g_n = gimp_operation_color_balance_map (g,
                                               config->magenta_green[GIMP_SHADOWS],
                                               config->magenta_green[GIMP_MIDTONES],
                                               config->magenta_green[GIMP_HIGHLIGHTS]);
 
-      b_n = gimp_operation_color_balance_map (b, hsl.l,
+      b_n = gimp_operation_color_balance_map (b,
                                               config->yellow_blue[GIMP_SHADOWS],
                                               config->yellow_blue[GIMP_MIDTONES],
                                               config->yellow_blue[GIMP_HIGHLIGHTS]);
 
       if (config->preserve_luminosity)
         {
+          GimpRGB rgb;
+          GimpHSL hsl;
           GimpHSL hsl2;
 
           rgb.r = r_n;
