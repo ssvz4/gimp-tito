@@ -739,7 +739,6 @@ search_display_results (const gchar *keyword)
             
           if(search(action,keyword))
        	    {
-	  
               add_to_list( gimp_strip_uline (gtk_action_get_label (action)),
                            gtk_action_get_tooltip (action),
                            action);
@@ -982,10 +981,10 @@ initializer(void)
   //initialize history_file_path
   if(first_time)
   {
-    history_file_path= g_new(gchar, 50);
+    history_file_path= g_new(gchar, strlen(gimp_sysconf_directory()));
     strcpy(history_file_path,(gchar*)gimp_sysconf_directory());
     
-    preference_file_path= g_new(gchar,50);
+    preference_file_path= g_new(gchar,strlen(gimp_sysconf_directory()));
     strcpy(preference_file_path,(gchar*)gimp_sysconf_directory());
     
     strcat(history_file_path,"/history_tito");
@@ -993,7 +992,7 @@ initializer(void)
 
     for(i=0;i<MAX_HISTORY_ACTIONS;i++)
       {
-        name[i].action_name = g_new(char, 50);
+        name[i].action_name = g_new(char, 100);
         strcpy(name[i].action_name,"");
         name[i].no=0;
       }
@@ -1053,7 +1052,7 @@ update_preferences(void)
     
   if(PREF.POSITION == 0)
   {
-    PREF.POSITION_X = (1-0.4)*gdk_screen_get_width(gdk_screen_get_default());
+    PREF.POSITION_X = (1-PREF.WIDTH/100)*gdk_screen_get_width(gdk_screen_get_default());
     PREF.POSITION_Y = 0.04*gdk_screen_get_height(gdk_screen_get_default());
   }
   else if(PREF.POSITION == 1)
