@@ -978,13 +978,12 @@ gboolean
 initializer(void)
 {
   int i=0;
-  //initialize history_file_path
   if(first_time)
   {
-    history_file_path= g_new(gchar, strlen(gimp_sysconf_directory()));
+    history_file_path= g_new(gchar, 1024);
     strcpy(history_file_path,(gchar*)gimp_sysconf_directory());
     
-    preference_file_path= g_new(gchar,strlen(gimp_sysconf_directory()));
+    preference_file_path= g_new(gchar,1024);
     strcpy(preference_file_path,(gchar*)gimp_sysconf_directory());
     
     strcat(history_file_path,"/history_tito");
