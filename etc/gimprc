@@ -205,8 +205,8 @@
 # Sets the default image in the "File/New" dialog.  This is a parameter list.
 # 
 # (default-image
-#     (width 610)
-#     (height 377)
+#     (width 640)
+#     (height 400)
 #     (unit pixels)
 #     (xresolution 72.000000)
 #     (yresolution 72.000000)
@@ -303,6 +303,12 @@
 # Documents list.  Possible values are yes and no.
 # 
 # (save-document-history yes)
+
+# Sets the default quick mask color.  The color is specified in the form
+# (color-rgba red green blue alpha) with channel values as floats in the
+# range of 0.0 to 1.0.
+# 
+# (quick-mask-color (color-rgba 1.000000 0.000000 0.000000 0.500000))
 
 # Sets the size of the checkerboard used to display transparency.  Possible
 # values are small-checks, medium-checks and large-checks.
@@ -675,7 +681,7 @@
 # The location of the online user manual. This is used if
 # 'user-manual-online' is enabled.  This is a string value.
 # 
-# (user-manual-online-uri "http://docs.gimp.org/2.7")
+# (user-manual-online-uri "http://docs.gimp.org/2.8")
 
 # The window type hint that is set on dock windows and the toolbox window.
 # This may affect the way your window manager decorates and handles these
