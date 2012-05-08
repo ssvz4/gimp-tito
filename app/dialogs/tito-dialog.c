@@ -36,7 +36,7 @@
 
 #include "gimp-intl.h"
 
-#define MAX_HISTORY_ACTIONS 10
+#define MAX_HISTORY_ACTIONS 20
 
 static GtkWidget* setup_list(void);                  //creates results ui
 static gboolean search_dialog (void);                //builds the main ui
@@ -823,20 +823,23 @@ search( GtkAction *action,
               return TRUE;
         }
     }
+    
   if(strstr(label,key))
 	    return TRUE; 
-  if(strlen(key)>2)
-  {
-    if(gtk_action_get_tooltip(action)==NULL)
-      return FALSE;
-      
-    strcpy(tooltip,gtk_action_get_tooltip (action));
-    for(i=0;i<strlen(tooltip);i++)
-      tooltip[i]=tolower(tooltip[i]);
+	    
+  if(strlen(key)>2 || strcmp(key," ")==0)
+    {
+      if(gtk_action_get_tooltip(action)!=NULL)
+        {
+          strcpy(tooltip,gtk_action_get_tooltip (action));
+          for(i=0;i<strlen(tooltip);i++)
+            tooltip[i]=tolower(tooltip[i]);
 
-    if(strstr(tooltip,key))
-      	return TRUE; 
-  }
+          if(strstr(tooltip,key))
+            	return TRUE; 
+        }
+    }
+    
   g_free(label);
   g_free(key);
   g_free(tooltip);
@@ -935,7 +938,10 @@ update_history(GtkAction *action)
   if(!is_present)
     {
       history[cur_no_of_his_actions].history_action = action;
-      history[cur_no_of_his_actions++].count=1;
+      if(cur_no_of_his_actions==MAX_HISTORY_ACTIONS)
+          history[cur_no_of_his_actions].count=1;
+      else
+       history[cur_no_of_his_actions++].count=1;
     }
         
   //sort history according to count
