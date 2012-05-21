@@ -91,7 +91,7 @@ static void context_menu_handler( GtkMenuItem* menuitem,
                                   gpointer *data);
 GimpUIManager     *manager;
 static GtkWidget  *dialog;
-static GtkWidget  *list;                             //view shown to the user
+static GtkWidget  *list;
 static GtkWidget  *list_view;
 static GtkWidget  *keyword_entry;
 static GtkWidget  *specify_radio;
@@ -103,6 +103,7 @@ static GtkWidget  *pos_x_spin_button;
 static GtkWidget  *pos_y_spin_button;
 static GtkWidget  *no_of_results_spin_button;
 static GtkWidget  *width_spin_button;
+static GtkWidget  *opacity_spin_button;
 static GtkWidget  *autohide_check_button;
 static GtkWidget  *show_insensitive_check_button;
 static GtkWidget  *preferences_button;
@@ -141,6 +142,7 @@ static struct PREFERENCES {
   float WIDTH;
   gboolean AUTO_HIDE;
   gboolean SHOW_INSENSITIVE;
+  gdouble OPACITY;
 }PREF;
 
 GtkWidget *
@@ -202,14 +204,13 @@ search_dialog (void)
 {
   GtkWidget *main_vbox, *main_hbox;
   GtkWidget *preferences_image;
-  gdouble opacity=0.7;
 
   dialog= gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
   gtk_window_set_decorated (GTK_WINDOW(dialog),FALSE);
   gtk_window_set_default_size (GTK_WINDOW(dialog),(PREF.WIDTH/100)*gdk_screen_get_width(gdk_screen_get_default()),def_height);
   gtk_window_move (GTK_WINDOW(dialog),PREF.POSITION_X,PREF.POSITION_Y);
-  gtk_window_set_opacity (GTK_WINDOW(dialog),opacity);
+  gtk_window_set_opacity (GTK_WINDOW(dialog),PREF.OPACITY);
   if(!PREF.AUTO_HIDE)
     gtk_window_set_keep_above(GTK_WINDOW(dialog),TRUE);
 
@@ -277,9 +278,11 @@ preferences_dialog(void)
   GtkWidget   *display_frame;
   GtkWidget   *display_vbox;
   GtkWidget   *no_of_results_hbox;
-  GtkWidget   *width_hbox;  
+  GtkWidget   *width_hbox;
+  GtkWidget   *opacity_hbox;    
   GtkWidget   *no_of_results_label;
   GtkWidget   *width_label;
+  GtkWidget   *opacity_label;  
   
   GtkWidget   *bottom_hbox;
   GtkWidget   *clear_history_button;
@@ -340,10 +343,13 @@ preferences_dialog(void)
   
   no_of_results_hbox = gtk_hbox_new(FALSE,2);
   width_hbox = gtk_hbox_new(FALSE,2);
+  opacity_hbox = gtk_hbox_new(FALSE,2);  
   no_of_results_label = gtk_label_new("Results height:");
   no_of_results_spin_button = gtk_spin_button_new_with_range(2,10,1);
   width_label = gtk_label_new("Tito Width:");
   width_spin_button = gtk_spin_button_new_with_range(20,60,1);
+  opacity_label = gtk_label_new("Tito Opacity:");
+  opacity_spin_button = gtk_spin_button_new_with_range(40,100,10);  
   autohide_check_button = gtk_check_button_new_with_label("Autohide");
   show_insensitive_check_button = gtk_check_button_new_with_label("Show inert actions");
   clear_history_button = gtk_button_new_with_label ("Clear history");
@@ -357,6 +363,9 @@ preferences_dialog(void)
       gtk_box_pack_start (GTK_BOX (display_vbox), width_hbox, TRUE, TRUE, 2);          
           gtk_box_pack_start (GTK_BOX (width_hbox), width_label, TRUE, TRUE, 2);          
           gtk_box_pack_start (GTK_BOX (width_hbox), width_spin_button, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (display_vbox), opacity_hbox, TRUE, TRUE, 2);          
+          gtk_box_pack_start (GTK_BOX (opacity_hbox), opacity_label, TRUE, TRUE, 2);          
+          gtk_box_pack_start (GTK_BOX (opacity_hbox), opacity_spin_button, TRUE, TRUE, 2);    
       gtk_box_pack_start (GTK_BOX (display_vbox), autohide_check_button, TRUE, TRUE, 2);
       gtk_box_pack_start (GTK_BOX (display_vbox), show_insensitive_check_button, TRUE, TRUE, 2);
 
@@ -387,10 +396,13 @@ preferences_dialog(void)
   gtk_widget_show (display_vbox);
   gtk_widget_show (no_of_results_hbox);
   gtk_widget_show (width_hbox);
+  gtk_widget_show (opacity_hbox);  
   gtk_widget_show (no_of_results_label);
   gtk_widget_show (width_label);
+  gtk_widget_show (opacity_label);
   gtk_widget_show (no_of_results_spin_button);
   gtk_widget_show (width_spin_button);
+  gtk_widget_show (opacity_spin_button);  
   gtk_widget_show (autohide_check_button);
   gtk_widget_show (show_insensitive_check_button);
 
@@ -426,7 +438,8 @@ set_prefereces_ui_values(void)
   modify_position_spins();
 
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(no_of_results_spin_button), (gdouble)PREF.NO_OF_RESULTS);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(width_spin_button), (gdouble)PREF.WIDTH);  
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(width_spin_button), (gdouble)PREF.WIDTH);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(opacity_spin_button), (gdouble)PREF.OPACITY*100);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autohide_check_button), PREF.AUTO_HIDE);    
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_insensitive_check_button), PREF.SHOW_INSENSITIVE);
   
@@ -1033,6 +1046,7 @@ set_default_preferences(void)
  PREF.NO_OF_RESULTS = 4;
  PREF.AUTO_HIDE = TRUE;
  PREF.SHOW_INSENSITIVE = TRUE;	
+ PREF.OPACITY = 1;
  write_preferences();
 }
 
@@ -1051,8 +1065,9 @@ update_preferences(void)
       tmp_y = (gfloat) gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pos_y_spin_button));      
     }
   
-  PREF.NO_OF_RESULTS     = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(no_of_results_spin_button));
+  PREF.NO_OF_RESULTS    = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(no_of_results_spin_button));
   PREF.WIDTH            = (gfloat)gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(width_spin_button));
+  PREF.OPACITY          = (gdouble)gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(opacity_spin_button))/100;
   PREF.AUTO_HIDE        = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(autohide_check_button));
   PREF.SHOW_INSENSITIVE = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(show_insensitive_check_button));
     
@@ -1082,8 +1097,8 @@ write_preferences(void)
  fp=fopen(preference_file_path,"w");
  if(fp == NULL)
     return;
- fprintf(fp,"%d %f %f %d %f %d %d", PREF.POSITION,PREF.POSITION_X, PREF.POSITION_Y,
-				    PREF.NO_OF_RESULTS, PREF.WIDTH, PREF.AUTO_HIDE,PREF.SHOW_INSENSITIVE);
+ fprintf(fp,"%d %f %f %d %f %d %d %lf", PREF.POSITION,PREF.POSITION_X, PREF.POSITION_Y,
+				    PREF.NO_OF_RESULTS, PREF.WIDTH, PREF.AUTO_HIDE,PREF.SHOW_INSENSITIVE,PREF.OPACITY);
  fclose(fp);
 }
 
@@ -1097,8 +1112,8 @@ read_preferences(void)
      set_default_preferences();
      return;
    }
- if(fscanf(fp,"%d %f %f %d %f %d %d", &PREF.POSITION, &PREF.POSITION_X, &PREF.POSITION_Y,
-				   &PREF.NO_OF_RESULTS, &PREF.WIDTH, &PREF.AUTO_HIDE, &PREF.SHOW_INSENSITIVE) == 0)
+ if(fscanf(fp,"%d %f %f %d %f %d %d %lf", &PREF.POSITION, &PREF.POSITION_X, &PREF.POSITION_Y,
+				   &PREF.NO_OF_RESULTS, &PREF.WIDTH, &PREF.AUTO_HIDE, &PREF.SHOW_INSENSITIVE, &PREF.OPACITY) == 0)
 	   set_default_preferences();
  fclose(fp);
 }
