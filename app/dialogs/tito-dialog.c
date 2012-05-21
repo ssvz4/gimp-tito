@@ -598,7 +598,7 @@ add_to_list( const gchar *label,
   
   if(data==NULL)
     return;
-  if(strstr(label, "bruce")!=NULL)
+  if(strchr(label, '@')!=NULL||strchr(label, '&')!=NULL)
     return;
     
   if(GTK_IS_TOGGLE_ACTION(action))
@@ -937,11 +937,12 @@ update_history(GtkAction *action)
   //assign action to history var
   if(!is_present)
     {
-      history[cur_no_of_his_actions].history_action = action;
-      if(cur_no_of_his_actions==MAX_HISTORY_ACTIONS)
-          history[cur_no_of_his_actions].count=1;
+      if(cur_no_of_his_actions==MAX_HISTORY_ACTIONS-1)
+        history[cur_no_of_his_actions].count=1;
       else
-       history[cur_no_of_his_actions++].count=1;
+        history[cur_no_of_his_actions++].count=1;
+
+      history[cur_no_of_his_actions].history_action = action;
     }
         
   //sort history according to count
