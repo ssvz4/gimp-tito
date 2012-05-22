@@ -56,7 +56,8 @@ static gboolean     gimp_operation_cage_transform_process                 (GeglO
                                                                            GeglBuffer          *in_buf,
                                                                            GeglBuffer          *aux_buf,
                                                                            GeglBuffer          *out_buf,
-                                                                           const GeglRectangle *roi);
+                                                                           const GeglRectangle *roi,
+                                                                           gint                 level);
 static void         gimp_operation_cage_transform_interpolate_source_coords_recurs
                                                                           (GimpOperationCageTransform  *oct,
                                                                            GeglBuffer          *out_buf,
@@ -71,7 +72,7 @@ static void         gimp_operation_cage_transform_interpolate_source_coords_recu
                                                                            gfloat              *coords);
 static GimpVector2  gimp_cage_transform_compute_destination               (GimpCageConfig      *config,
                                                                            gfloat              *coef,
-                                                                           Babl                *format_coef,
+                                                                           const Babl          *format_coef,
                                                                            GeglBuffer          *coef_buf,
                                                                            GimpVector2          coords);
 GeglRectangle       gimp_operation_cage_transform_get_cached_region       (GeglOperation       *operation,
@@ -226,14 +227,15 @@ gimp_operation_cage_transform_process (GeglOperation       *operation,
                                        GeglBuffer          *in_buf,
                                        GeglBuffer          *aux_buf,
                                        GeglBuffer          *out_buf,
-                                       const GeglRectangle *roi)
+                                       const GeglRectangle *roi,
+                                       gint                 level)
 {
   GimpOperationCageTransform *oct    = GIMP_OPERATION_CAGE_TRANSFORM (operation);
   GimpCageConfig             *config = GIMP_CAGE_CONFIG (oct->config);
   GeglRectangle               cage_bb;
   gfloat                     *coords;
   gfloat                     *coef;
-  Babl                       *format_coef;
+  const Babl                 *format_coef;
   GimpVector2                 plain_color;
   GeglBufferIterator         *it;
   gint                        x, y;
@@ -242,7 +244,7 @@ gimp_operation_cage_transform_process (GeglOperation       *operation,
   guint                       n_cage_vertices;
 
   /* pre-fill the out buffer with no-displacement coordinate */
-  it      = gegl_buffer_iterator_new (out_buf, roi, NULL, GEGL_BUFFER_WRITE);
+  it      = gegl_buffer_iterator_new (out_buf, roi, 0, NULL, GEGL_BUFFER_WRITE, GEGL_ABYSS_NONE);
   cage_bb = gimp_cage_config_get_bounding_box (config);
 
   point = &(g_array_index (config->cage_points, GimpCagePoint, 0));
@@ -462,6 +464,7 @@ gimp_operation_cage_transform_interpolate_source_coords_recurs (GimpOperationCag
 
           gegl_buffer_set (out_buf,
                            &rect,
+                           0,
                            oct->format_coords,
                            coords,
                            GEGL_AUTO_ROWSTRIDE);
@@ -543,7 +546,7 @@ gimp_operation_cage_transform_interpolate_source_coords_recurs (GimpOperationCag
 static GimpVector2
 gimp_cage_transform_compute_destination (GimpCageConfig *config,
                                          gfloat         *coef,
-                                         Babl           *format_coef,
+                                         const Babl     *format_coef,
                                          GeglBuffer     *coef_buf,
                                          GimpVector2     coords)
 {
@@ -563,7 +566,8 @@ gimp_cage_transform_compute_destination (GimpCageConfig *config,
     rect.x      = coords.x;
     rect.y      = coords.y;
 
-    gegl_buffer_get (coef_buf, 1, &rect, format_coef, coef, GEGL_AUTO_ROWSTRIDE);
+    gegl_buffer_get (coef_buf, &rect, 1.0, format_coef, coef,
+                     GEGL_AUTO_ROWSTRIDE, GEGL_ABYSS_NONE);
   #endif
 
   for (i = 0; i < n_cage_vertices; i++)
