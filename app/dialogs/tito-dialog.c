@@ -162,167 +162,6 @@ restore_defaults_button_clicked ( GtkButton *button,
 }
 
 static void
-tito_preferences_dialog (void)
-{
-  GtkWidget   *pref_dialog;
-  GtkWidget   *top_hbox;
-
-  GtkWidget   *position_frame;
-  GtkWidget   *position_vbox;
-  GtkWidget   *pos_x_label;
-  GtkWidget   *pos_y_label;
-  GtkWidget   *specify_alignment_x;
-  GtkWidget   *specify_alignment_y;
-
-  GtkWidget   *display_frame;
-  GtkWidget   *display_vbox;
-  GtkWidget   *no_of_results_hbox;
-  GtkWidget   *width_hbox;
-  GtkWidget   *opacity_hbox;
-  GtkWidget   *no_of_results_label;
-  GtkWidget   *width_label;
-  GtkWidget   *opacity_label;
-
-  GtkWidget   *bottom_hbox;
-  GtkWidget   *tito_clear_history_button;
-  GtkWidget   *restore_defaults_button;
-
-  pref_dialog = gtk_dialog_new_with_buttons ( "Tito preferences",
-                                              NULL,
-                                              GTK_DIALOG_MODAL,
-                                              GTK_STOCK_OK,
-                                              GTK_RESPONSE_ACCEPT,
-                                              GTK_STOCK_CANCEL,
-                                              GTK_RESPONSE_REJECT,
-                                              NULL);
-
-  gtk_window_set_position (GTK_WINDOW(pref_dialog), GTK_WIN_POS_CENTER_ALWAYS);
-  top_hbox = gtk_hbox_new (FALSE,10);
-  gtk_box_pack_start (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(pref_dialog))), top_hbox, FALSE, FALSE, 2);
-
-  //Position preferences
-  position_frame = gtk_frame_new("Postion");
-  position_vbox = gtk_vbox_new(TRUE,2);
-
-  gtk_frame_set_shadow_type (GTK_FRAME(position_frame), GTK_SHADOW_ETCHED_IN);
-
-  right_top_radio = gtk_radio_button_new_with_label(NULL,"Right-Top");
-  middle_radio = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (right_top_radio), "Middle");
-  specify_radio = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (right_top_radio), "Specify");
-  pos_x_hbox = gtk_hbox_new(FALSE, 1);
-  pos_y_hbox = gtk_hbox_new(FALSE, 1);
-  specify_alignment_x = gtk_alignment_new (1,0,0,0);
-  specify_alignment_y = gtk_alignment_new (1,0,0,0);
-  pos_x_label = gtk_label_new("x:");
-  pos_y_label = gtk_label_new("y:");
-  pos_x_spin_button = gtk_spin_button_new_with_range (0, 100-PREF.WIDTH, 1);
-  pos_y_spin_button = gtk_spin_button_new_with_range (0, 50, 1);
-
-  gtk_box_pack_start (GTK_BOX(top_hbox), position_frame, FALSE, FALSE, 2);
-  gtk_container_add (GTK_CONTAINER(position_frame), position_vbox);
-      gtk_box_pack_start (GTK_BOX (position_vbox), right_top_radio, TRUE, TRUE, 2);
-      gtk_box_pack_start (GTK_BOX (position_vbox), middle_radio, TRUE, TRUE, 2);
-      gtk_box_pack_start (GTK_BOX (position_vbox), specify_radio, TRUE, TRUE, 2);
-
-      gtk_box_pack_start (GTK_BOX (position_vbox), specify_alignment_x, TRUE, TRUE, 1);
-          gtk_container_add (GTK_CONTAINER (specify_alignment_x), pos_x_hbox);
-              gtk_box_pack_start (GTK_BOX (pos_x_hbox),pos_x_label, TRUE, TRUE, 1);
-              gtk_box_pack_start (GTK_BOX (pos_x_hbox),pos_x_spin_button, TRUE, TRUE, 1);
-
-      gtk_box_pack_start (GTK_BOX (position_vbox), specify_alignment_y, TRUE, TRUE, 1);
-          gtk_container_add (GTK_CONTAINER (specify_alignment_y), pos_y_hbox);
-              gtk_box_pack_start (GTK_BOX (pos_y_hbox),pos_y_label, TRUE, TRUE, 1);
-              gtk_box_pack_start (GTK_BOX (pos_y_hbox),pos_y_spin_button, TRUE, TRUE, 1);
-
-  //Display preferences
-  display_frame = gtk_frame_new("Display");
-  display_vbox = gtk_vbox_new(TRUE,2);
-
-  gtk_frame_set_shadow_type (GTK_FRAME(display_frame), GTK_SHADOW_ETCHED_IN);
-
-  no_of_results_hbox = gtk_hbox_new(FALSE,2);
-  width_hbox = gtk_hbox_new(FALSE,2);
-  opacity_hbox = gtk_hbox_new(FALSE,2);
-  no_of_results_label = gtk_label_new("Results height:");
-  no_of_results_spin_button = gtk_spin_button_new_with_range(2,10,1);
-  width_label = gtk_label_new("Tito Width:");
-  width_spin_button = gtk_spin_button_new_with_range(20,60,1);
-  opacity_label = gtk_label_new("Tito Opacity:");
-  opacity_spin_button = gtk_spin_button_new_with_range(40,100,10);
-  autohide_check_button = gtk_check_button_new_with_label("Autohide");
-  show_insensitive_check_button = gtk_check_button_new_with_label("Show inert actions");
-  tito_clear_history_button = gtk_button_new_with_label ("Clear history");
-  restore_defaults_button = gtk_button_new_with_label ("Restore defaults");
-
-  gtk_box_pack_start (GTK_BOX(top_hbox), display_frame, FALSE, FALSE, 2);
-  gtk_container_add (GTK_CONTAINER(display_frame), display_vbox);
-      gtk_box_pack_start (GTK_BOX (display_vbox), no_of_results_hbox, TRUE, TRUE, 2);
-          gtk_box_pack_start (GTK_BOX (no_of_results_hbox), no_of_results_label, TRUE, TRUE, 2);
-          gtk_box_pack_start (GTK_BOX (no_of_results_hbox), no_of_results_spin_button, TRUE, TRUE, 2);
-      gtk_box_pack_start (GTK_BOX (display_vbox), width_hbox, TRUE, TRUE, 2);
-          gtk_box_pack_start (GTK_BOX (width_hbox), width_label, TRUE, TRUE, 2);
-          gtk_box_pack_start (GTK_BOX (width_hbox), width_spin_button, TRUE, TRUE, 2);
-      gtk_box_pack_start (GTK_BOX (display_vbox), opacity_hbox, TRUE, TRUE, 2);
-          gtk_box_pack_start (GTK_BOX (opacity_hbox), opacity_label, TRUE, TRUE, 2);
-          gtk_box_pack_start (GTK_BOX (opacity_hbox), opacity_spin_button, TRUE, TRUE, 2);
-      gtk_box_pack_start (GTK_BOX (display_vbox), autohide_check_button, TRUE, TRUE, 2);
-      gtk_box_pack_start (GTK_BOX (display_vbox), show_insensitive_check_button, TRUE, TRUE, 2);
-
-  //Clear and restore
-  bottom_hbox = gtk_hbox_new(TRUE,2);
-  gtk_box_pack_start (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(pref_dialog))), bottom_hbox, FALSE, FALSE, 2);
-    gtk_box_pack_start (GTK_BOX (bottom_hbox), tito_clear_history_button, TRUE, TRUE, 2);
-    gtk_box_pack_start (GTK_BOX (bottom_hbox), restore_defaults_button, TRUE, TRUE, 2);
-
-  gtk_widget_show (top_hbox);
-
-  gtk_widget_show (position_frame);
-  gtk_widget_show (position_vbox);
-  gtk_widget_show (right_top_radio);
-  gtk_widget_show (middle_radio);
-  gtk_widget_show (specify_radio);
-  gtk_widget_show (specify_alignment_x);
-  gtk_widget_show (specify_alignment_y);
-  gtk_widget_show (pos_x_hbox);
-  gtk_widget_show (pos_y_hbox);
-  gtk_widget_show (pos_x_label);
-  gtk_widget_show (pos_y_label);
-  gtk_widget_show (pos_x_spin_button);
-  gtk_widget_show (pos_y_spin_button);
-  gtk_widget_show (display_frame);
-  gtk_widget_show (display_vbox);
-  gtk_widget_show (no_of_results_hbox);
-  gtk_widget_show (width_hbox);
-  gtk_widget_show (opacity_hbox);
-  gtk_widget_show (no_of_results_label);
-  gtk_widget_show (width_label);
-  gtk_widget_show (opacity_label);
-  gtk_widget_show (no_of_results_spin_button);
-  gtk_widget_show (width_spin_button);
-  gtk_widget_show (opacity_spin_button);
-  gtk_widget_show (autohide_check_button);
-  gtk_widget_show (show_insensitive_check_button);
-
-  gtk_widget_show (bottom_hbox);
-  gtk_widget_show (tito_clear_history_button);
-  gtk_widget_show (restore_defaults_button);
-
-  tito_set_prefereces_ui_values();
-  gtk_widget_show (pref_dialog);
-
-  g_signal_connect (right_top_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
-  g_signal_connect (middle_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
-  g_signal_connect (specify_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
-  g_signal_connect (tito_clear_history_button, "clicked", G_CALLBACK (tito_clear_history_button_clicked), NULL);
-  g_signal_connect (restore_defaults_button, "clicked", G_CALLBACK (restore_defaults_button_clicked), NULL);
-
-  if(gtk_dialog_run (GTK_DIALOG (pref_dialog)) == GTK_RESPONSE_ACCEPT)
-    tito_update_preferences();
-
-  gtk_widget_destroy (pref_dialog);
-}
-
-static void
 tito_set_prefereces_ui_values (void)
 {
   if( PREF.POSITION == 0)
@@ -457,15 +296,15 @@ row_activated ( GtkTreeView        *treeview,
 }
 
 static gboolean
-tito_action_view_accel_find_func (GtkAccelKey *key,
-                                  GClosure    *closure,
-                                  gpointer     data)
+tito_action_view_accel_find_func ( GtkAccelKey *key,
+                                   GClosure    *closure,
+                                   gpointer     data)
 {
   return (GClosure *) data == closure;
 }
 
 static gchar*
-find_accel_label( GtkAction *action)
+find_accel_label (GtkAction *action)
 {
   guint            accel_key     = 0;
   GdkModifierType  accel_mask    = 0;
@@ -558,7 +397,7 @@ tito_add_to_results_list( const gchar *label,
 }
 
 gboolean
-tito_run_result_action(void)
+tito_run_result_action (void)
 {
   GtkTreeSelection *selection;
   GtkTreeModel     *model;
@@ -592,17 +431,17 @@ tito_search_history_and_actions (const gchar *keyword)
   if(strcmp(keyword,"")==0)
     return;
 
-    //search in history
-    for(i=0;i<cur_no_of_his_actions;i++)
-    {
-      if(history[i].history_action!=NULL)
-        {
-          if(tito_is_action_match(history[i].history_action,keyword))
+  //search in history
+  for(i=0;i<cur_no_of_his_actions;i++)
+  {
+    if(history[i].history_action!=NULL)
+      {
+        if(tito_is_action_match(history[i].history_action,keyword))
           tito_add_to_results_list( gimp_strip_uline (gtk_action_get_label (history[i].history_action)),
-                     gtk_action_get_tooltip (history[i].history_action),
-                     history[i].history_action );
-        }
+                                    gtk_action_get_tooltip (history[i].history_action),
+                                    history[i].history_action );
       }
+  }
 
   //for every action group
   for (list = gtk_ui_manager_get_action_groups (GTK_UI_MANAGER (manager));
@@ -656,8 +495,8 @@ tito_search_history_and_actions (const gchar *keyword)
           if(tito_is_action_match(action,keyword))
             {
               tito_add_to_results_list( gimp_strip_uline (gtk_action_get_label (action)),
-                           gtk_action_get_tooltip (action),
-                           action);
+                                        gtk_action_get_tooltip (action),
+                                        action);
             }
         }
       g_list_free (actions);
@@ -1028,6 +867,134 @@ tito_context_menu (void)
   gtk_menu_popup( GTK_MENU(context_menu), NULL, NULL, NULL, NULL, 0, gtk_get_current_event_time());
 }
 
+static void
+tito_preferences_dialog (void)
+{
+  GtkWidget   *pref_dialog;
+  GtkWidget   *top_hbox;
+
+  GtkWidget   *position_frame;
+  GtkWidget   *position_vbox;
+  GtkWidget   *pos_x_label;
+  GtkWidget   *pos_y_label;
+  GtkWidget   *specify_alignment_x;
+  GtkWidget   *specify_alignment_y;
+
+  GtkWidget   *display_frame;
+  GtkWidget   *display_vbox;
+  GtkWidget   *no_of_results_hbox;
+  GtkWidget   *width_hbox;
+  GtkWidget   *opacity_hbox;
+  GtkWidget   *no_of_results_label;
+  GtkWidget   *width_label;
+  GtkWidget   *opacity_label;
+
+  GtkWidget   *bottom_hbox;
+  GtkWidget   *tito_clear_history_button;
+  GtkWidget   *restore_defaults_button;
+
+  pref_dialog = gtk_dialog_new_with_buttons ( "Tito preferences",
+                                              NULL,
+                                              GTK_DIALOG_MODAL,
+                                              GTK_STOCK_OK,
+                                              GTK_RESPONSE_ACCEPT,
+                                              GTK_STOCK_CANCEL,
+                                              GTK_RESPONSE_REJECT,
+                                              NULL);
+
+  gtk_window_set_position (GTK_WINDOW(pref_dialog), GTK_WIN_POS_CENTER_ALWAYS);
+  top_hbox = gtk_hbox_new (FALSE,10);
+  gtk_box_pack_start (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(pref_dialog))), top_hbox, FALSE, FALSE, 2);
+
+  //Position preferences
+  position_frame = gtk_frame_new("Postion");
+  position_vbox = gtk_vbox_new(TRUE,2);
+
+  gtk_frame_set_shadow_type (GTK_FRAME(position_frame), GTK_SHADOW_ETCHED_IN);
+
+  right_top_radio = gtk_radio_button_new_with_label(NULL,"Right-Top");
+  middle_radio = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (right_top_radio), "Middle");
+  specify_radio = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (right_top_radio), "Specify");
+  pos_x_hbox = gtk_hbox_new(FALSE, 1);
+  pos_y_hbox = gtk_hbox_new(FALSE, 1);
+  specify_alignment_x = gtk_alignment_new (1,0,0,0);
+  specify_alignment_y = gtk_alignment_new (1,0,0,0);
+  pos_x_label = gtk_label_new("x:");
+  pos_y_label = gtk_label_new("y:");
+  pos_x_spin_button = gtk_spin_button_new_with_range (0, 100-PREF.WIDTH, 1);
+  pos_y_spin_button = gtk_spin_button_new_with_range (0, 50, 1);
+
+  gtk_box_pack_start (GTK_BOX(top_hbox), position_frame, FALSE, FALSE, 2);
+  gtk_container_add (GTK_CONTAINER(position_frame), position_vbox);
+      gtk_box_pack_start (GTK_BOX (position_vbox), right_top_radio, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (position_vbox), middle_radio, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (position_vbox), specify_radio, TRUE, TRUE, 2);
+
+      gtk_box_pack_start (GTK_BOX (position_vbox), specify_alignment_x, TRUE, TRUE, 1);
+          gtk_container_add (GTK_CONTAINER (specify_alignment_x), pos_x_hbox);
+              gtk_box_pack_start (GTK_BOX (pos_x_hbox),pos_x_label, TRUE, TRUE, 1);
+              gtk_box_pack_start (GTK_BOX (pos_x_hbox),pos_x_spin_button, TRUE, TRUE, 1);
+
+      gtk_box_pack_start (GTK_BOX (position_vbox), specify_alignment_y, TRUE, TRUE, 1);
+          gtk_container_add (GTK_CONTAINER (specify_alignment_y), pos_y_hbox);
+              gtk_box_pack_start (GTK_BOX (pos_y_hbox),pos_y_label, TRUE, TRUE, 1);
+              gtk_box_pack_start (GTK_BOX (pos_y_hbox),pos_y_spin_button, TRUE, TRUE, 1);
+
+  //Display preferences
+  display_frame = gtk_frame_new("Display");
+  display_vbox = gtk_vbox_new(TRUE,2);
+
+  gtk_frame_set_shadow_type (GTK_FRAME(display_frame), GTK_SHADOW_ETCHED_IN);
+
+  no_of_results_hbox = gtk_hbox_new(FALSE,2);
+  width_hbox = gtk_hbox_new(FALSE,2);
+  opacity_hbox = gtk_hbox_new(FALSE,2);
+  no_of_results_label = gtk_label_new("Results height:");
+  no_of_results_spin_button = gtk_spin_button_new_with_range(2,10,1);
+  width_label = gtk_label_new("Tito Width:");
+  width_spin_button = gtk_spin_button_new_with_range(20,60,1);
+  opacity_label = gtk_label_new("Tito Opacity:");
+  opacity_spin_button = gtk_spin_button_new_with_range(40,100,10);
+  autohide_check_button = gtk_check_button_new_with_label("Autohide");
+  show_insensitive_check_button = gtk_check_button_new_with_label("Show inert actions");
+  tito_clear_history_button = gtk_button_new_with_label ("Clear history");
+  restore_defaults_button = gtk_button_new_with_label ("Restore defaults");
+
+  gtk_box_pack_start (GTK_BOX(top_hbox), display_frame, FALSE, FALSE, 2);
+  gtk_container_add (GTK_CONTAINER(display_frame), display_vbox);
+      gtk_box_pack_start (GTK_BOX (display_vbox), no_of_results_hbox, TRUE, TRUE, 2);
+          gtk_box_pack_start (GTK_BOX (no_of_results_hbox), no_of_results_label, TRUE, TRUE, 2);
+          gtk_box_pack_start (GTK_BOX (no_of_results_hbox), no_of_results_spin_button, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (display_vbox), width_hbox, TRUE, TRUE, 2);
+          gtk_box_pack_start (GTK_BOX (width_hbox), width_label, TRUE, TRUE, 2);
+          gtk_box_pack_start (GTK_BOX (width_hbox), width_spin_button, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (display_vbox), opacity_hbox, TRUE, TRUE, 2);
+          gtk_box_pack_start (GTK_BOX (opacity_hbox), opacity_label, TRUE, TRUE, 2);
+          gtk_box_pack_start (GTK_BOX (opacity_hbox), opacity_spin_button, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (display_vbox), autohide_check_button, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (display_vbox), show_insensitive_check_button, TRUE, TRUE, 2);
+
+  //Clear and restore
+  bottom_hbox = gtk_hbox_new(TRUE,2);
+  gtk_box_pack_start (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(pref_dialog))), bottom_hbox, FALSE, FALSE, 2);
+    gtk_box_pack_start (GTK_BOX (bottom_hbox), tito_clear_history_button, TRUE, TRUE, 2);
+    gtk_box_pack_start (GTK_BOX (bottom_hbox), restore_defaults_button, TRUE, TRUE, 2);
+
+  tito_set_prefereces_ui_values();
+  gtk_widget_show_all (pref_dialog);
+
+  g_signal_connect (right_top_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
+  g_signal_connect (middle_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
+  g_signal_connect (specify_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
+  g_signal_connect (tito_clear_history_button, "clicked", G_CALLBACK (tito_clear_history_button_clicked), NULL);
+  g_signal_connect (restore_defaults_button, "clicked", G_CALLBACK (restore_defaults_button_clicked), NULL);
+
+  if(gtk_dialog_run (GTK_DIALOG (pref_dialog)) == GTK_RESPONSE_ACCEPT)
+    tito_update_preferences();
+
+  gtk_widget_destroy (pref_dialog);
+}
+
 static GtkWidget*
 tito_setup_results_list(void)
 {
@@ -1063,7 +1030,6 @@ tito_setup_results_list(void)
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sc_win),
                                  GTK_POLICY_NEVER,
                                  GTK_POLICY_AUTOMATIC);
-  g_signal_connect(list, "row-activated", (GCallback) row_activated, NULL);
 
   gtk_container_add(GTK_CONTAINER(sc_win),list);
   g_object_unref(G_OBJECT(store));
@@ -1115,6 +1081,7 @@ tito_search_dialog (void)
   gtk_widget_set_events(dialog, GDK_BUTTON_PRESS_MASK);
   gtk_widget_set_events(preferences_button, GDK_BUTTON_PRESS_MASK);
 
+  g_signal_connect(list, "row-activated", (GCallback) row_activated, NULL);
   g_signal_connect (keyword_entry, "key-release-event", G_CALLBACK (key_released), NULL);
   g_signal_connect (list, "key_press_event", G_CALLBACK (result_selected), NULL);
   g_signal_connect (preferences_button, "clicked", G_CALLBACK(context_menu_invoked),NULL);
