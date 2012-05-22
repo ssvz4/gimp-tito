@@ -30,7 +30,7 @@
 #include "tito-dialog.h"
 #include "gimp-intl.h"
 
-#define MAX_HISTORY_ACTIONS 20
+#define           MAX_HISTORY_ACTIONS 20
 
 gboolean            tito_run_result_action             (void);
 static GtkWidget*   tito_setup_results_list            (void);
@@ -56,14 +56,14 @@ static void         tito_set_prefereces_ui_values      (void);
 
 gboolean            tito_initializer                   (void);
 void                tito_finalizer                     (void);
-static void         context_menu                       (void);
-
-
+static void         tito_context_menu                  (void);
 
 static GtkWidget        *dialog;
 static GtkWidget        *list;
 static GtkWidget        *list_view;
 static GtkWidget        *keyword_entry;
+static GtkWidget        *preferences_button;
+
 static GtkWidget        *specify_radio;
 static GtkWidget        *pos_x_hbox;
 static GtkWidget        *pos_y_hbox;
@@ -76,19 +76,18 @@ static GtkWidget        *width_spin_button;
 static GtkWidget        *opacity_spin_button;
 static GtkWidget        *autohide_check_button;
 static GtkWidget        *show_insensitive_check_button;
-static GtkWidget        *preferences_button;
 
 GimpUIManager           *manager;
-static gint             def_height=1;
-static gint             tmp_x, tmp_y;
 static gchar            *history_file_path;
 static gchar            *preference_file_path;
-static gint             cur_no_of_his_actions;
-static gboolean         first_time=TRUE;
+static gint              cur_no_of_his_actions;
+static gint              default_height = 1;
+static gboolean          first_time = TRUE;
+static gint              tmp_x, tmp_y;
 static GtkCellRenderer  *cell_renderer;
 
 
- enum RES_COL {
+enum RES_COL {
   RESULT_ICON,
   RESULT_DATA,
   RESULT_ACTION,
@@ -400,7 +399,7 @@ key_released( GtkWidget *widget,
   else
     {
       gtk_widget_hide(list_view);
-      gtk_window_resize (GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,def_height);
+      gtk_window_resize (GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,default_height);
     }
 }
 
@@ -854,7 +853,7 @@ tito_finalizer(void)
   if(!PREF.AUTO_HIDE)
     {
       gtk_widget_hide(list_view);
-      gtk_window_resize (GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,def_height);
+      gtk_window_resize (GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,default_height);
       gtk_entry_set_text(GTK_ENTRY(keyword_entry),"");
       gtk_widget_grab_focus(keyword_entry);
     }
@@ -991,7 +990,7 @@ context_menu_invoked  ( GtkWidget *widget,
                         GdkEvent  *event,
                         gpointer   user_data)
 {
-  context_menu();
+  tito_context_menu();
   return TRUE;
 }
 
@@ -1006,7 +1005,7 @@ context_menu_handler( GtkMenuItem* menuitem,
 }
 
 static void
-context_menu (void)
+tito_context_menu (void)
 {
   GtkWidget *preferences_menuitem;
   GtkWidget *close_menuitem;
@@ -1080,7 +1079,7 @@ tito_search_dialog (void)
   dialog= gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
   gtk_window_set_decorated (GTK_WINDOW(dialog),FALSE);
-  gtk_window_set_default_size (GTK_WINDOW(dialog),(PREF.WIDTH/100)*gdk_screen_get_width(gdk_screen_get_default()),def_height);
+  gtk_window_set_default_size (GTK_WINDOW(dialog),(PREF.WIDTH/100)*gdk_screen_get_width(gdk_screen_get_default()),default_height);
   gtk_window_move (GTK_WINDOW(dialog),PREF.POSITION_X,PREF.POSITION_Y);
   gtk_window_set_opacity (GTK_WINDOW(dialog),PREF.OPACITY);
   if(!PREF.AUTO_HIDE)
