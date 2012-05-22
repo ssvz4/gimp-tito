@@ -32,7 +32,6 @@
 
 #define MAX_HISTORY_ACTIONS 20
 
-//search core
 gboolean            tito_run_result_action             (void);
 static GtkWidget*   tito_setup_results_list            (void);
 static gboolean     tito_search_dialog                 (void);
@@ -43,13 +42,11 @@ static void         tito_add_to_results_list           (const gchar       *label
                                                         GtkAction*         action);
 static void         tito_search_history_and_actions    (const gchar       *keyword);
 
-//history
 static void         tito_update_history                (GtkAction         *action);
 static void         tito_read_history                  (void);
 static void         tito_fill_history                  (void);
 static void         tito_clear_history                 (void);
 
-//preferences
 static void         tito_preferences_dialog            (void);
 static void         tito_set_default_preferences       (void);
 static void         tito_update_preferences            (void);
@@ -57,42 +54,9 @@ static void         tito_write_preferences             (void);
 static void         tito_read_preferences              (void);
 static void         tito_set_prefereces_ui_values      (void);
 
-//utilities
-gboolean            initializer                        (void);
-void                finalizer                          (void);
-int                 compare                            (const void         *a,
-                                                        const void         *b);
-static gchar*       find_accel_label                   (GtkAction          *action);
-static gboolean     tito_action_view_accel_find_func   (GtkAccelKey        *key,
-                                                        GClosure           *closure,
-                                                        gpointer            data);
-
-//events
-gboolean            result_selected                    (GtkWidget          *widget,
-                                                        GdkEventKey        *pKey,
-                                                        gpointer            func_data);
-static void         tito_clear_history_button_clicked  (GtkButton          *button,
-                                                        gpointer            user_data);
-static void         restore_defaults_button_clicked    (GtkButton          *button,
-                                                        gpointer            user_data);
-static void         modify_position_spins              (void);
-static void         key_released                       (GtkWidget          *widget,
-                                                        GdkEventKey        *event,
-                                                        gpointer            func_data);
-gboolean            on_focus_out                       (GtkWidget          *widget,
-                                                        GdkEventFocus      *event,
-                                                        gpointer            data);
-void                row_activated                      (GtkTreeView        *treeview,
-                                                        GtkTreePath        *path,
-                                                        GtkTreeViewColumn  *col,
-                                                        gpointer            userdata);
-//context menu
+gboolean            tito_initializer                   (void);
+void                tito_finalizer                     (void);
 static void         context_menu                       (void);
-static void         context_menu_handler               (GtkMenuItem        *menuitem,
-                                                        gpointer           *data);
-static gboolean     context_menu_invoked               (GtkWidget          *widget,
-                                                        GdkEvent           *event,
-                                                        gpointer            user_data);
 
 
 
@@ -156,107 +120,46 @@ static struct PREFERENCES {
 GtkWidget *
 tito_dialog_create (void)
 {
-  if(!initializer())
-    g_message("Tito initializer failed");
+  if(!tito_initializer())
+    g_message("Tito tito_initializer failed");
   tito_search_dialog();
   return dialog;
 }
 
-static GtkWidget*
-tito_setup_results_list(void)
+static void
+modify_position_spins (void)
 {
-  gint wid1=100;
-  GtkWidget *sc_win;
-  GtkListStore *store;
-  GtkCellRenderer *cell1;
-  GtkTreeViewColumn *column1, *column2;
-
-  sc_win= gtk_scrolled_window_new(NULL, NULL);
-  store=gtk_list_store_new(N_COL, G_TYPE_STRING, G_TYPE_STRING, GTK_TYPE_ACTION,G_TYPE_BOOLEAN);
-  list=gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
-  gtk_tree_view_set_headers_visible (GTK_TREE_VIEW(list),FALSE);
-
-  cell1 = gtk_cell_renderer_pixbuf_new ();
-  column1=gtk_tree_view_column_new_with_attributes(NULL,
-                                                  cell1,
-                                                  "stock_id", RESULT_ICON,
-                                                  NULL);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(list),column1);
-  gtk_tree_view_column_add_attribute(column1, cell1, "sensitive", IS_SENSITIVE);
-  gtk_tree_view_column_set_min_width(column1,22);
-
-  cell_renderer = gtk_cell_renderer_text_new();
-  column2=gtk_tree_view_column_new_with_attributes(NULL,
-                                                  cell_renderer,
-                                                  "markup", RESULT_DATA,
-                                                  NULL);
-  gtk_tree_view_column_add_attribute(column2, cell_renderer, "sensitive", IS_SENSITIVE);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(list),column2);
-  gtk_tree_view_column_set_max_width(column2,wid1);
-
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sc_win),
-                                 GTK_POLICY_NEVER,
-                                 GTK_POLICY_AUTOMATIC);
-  g_signal_connect(list, "row-activated", (GCallback) row_activated, NULL);
-
-  gtk_container_add(GTK_CONTAINER(sc_win),list);
-  g_object_unref(G_OBJECT(store));
-  return sc_win;
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(specify_radio)))
+    {
+      gtk_widget_set_sensitive(pos_x_hbox, TRUE);
+      gtk_widget_set_sensitive(pos_y_hbox, TRUE);
+    }
+  else
+    {
+      gtk_widget_set_sensitive(pos_x_hbox, FALSE);
+      gtk_widget_set_sensitive(pos_y_hbox, FALSE);
+    }
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(pos_x_spin_button),
+                            (gdouble)(PREF.POSITION_X/gdk_screen_get_width(gdk_screen_get_default())*100));
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(pos_y_spin_button),
+                            (gdouble)(PREF.POSITION_Y/gdk_screen_get_height(gdk_screen_get_default())*100));
+  gtk_spin_button_set_range (GTK_SPIN_BUTTON(pos_x_spin_button),
+                            (gdouble)0, (gdouble)( 100-gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(width_spin_button))));
 }
 
-
-static gboolean
-tito_search_dialog (void)
+static void
+tito_clear_history_button_clicked ( GtkButton *button,
+                                    gpointer   user_data)
 {
-  GtkWidget *main_vbox, *main_hbox;
-  GtkWidget *preferences_image;
+  tito_clear_history();
+}
 
-  dialog= gtk_window_new(GTK_WINDOW_TOPLEVEL);
-
-  gtk_window_set_decorated (GTK_WINDOW(dialog),FALSE);
-  gtk_window_set_default_size (GTK_WINDOW(dialog),(PREF.WIDTH/100)*gdk_screen_get_width(gdk_screen_get_default()),def_height);
-  gtk_window_move (GTK_WINDOW(dialog),PREF.POSITION_X,PREF.POSITION_Y);
-  gtk_window_set_opacity (GTK_WINDOW(dialog),PREF.OPACITY);
-  if(!PREF.AUTO_HIDE)
-    gtk_window_set_keep_above(GTK_WINDOW(dialog),TRUE);
-
-  main_vbox = gtk_vbox_new (FALSE, 2);
-  gtk_container_add (GTK_CONTAINER (dialog), main_vbox);
-  gtk_widget_show (main_vbox);
-
-  main_hbox = gtk_hbox_new (FALSE, 2);
-  gtk_box_pack_start(GTK_BOX(main_vbox),main_hbox,FALSE,TRUE,0);
-  gtk_widget_show (main_hbox);
-
-  keyword_entry = gtk_entry_new();
-  gtk_entry_set_has_frame(GTK_ENTRY(keyword_entry),FALSE);
-  gtk_entry_set_icon_from_stock(GTK_ENTRY(keyword_entry),GTK_ENTRY_ICON_PRIMARY,GTK_STOCK_FIND);
-  gtk_widget_show (keyword_entry);
-  gtk_box_pack_start(GTK_BOX(main_hbox),keyword_entry,TRUE,TRUE,0);
-
-  preferences_image = gtk_image_new_from_stock (GTK_STOCK_PROPERTIES, GTK_ICON_SIZE_MENU);
-  preferences_button = gtk_button_new();
-  gtk_button_set_image (GTK_BUTTON(preferences_button),preferences_image);
-  gtk_widget_show (preferences_image);
-  gtk_widget_show (preferences_button);
-  gtk_box_pack_end(GTK_BOX(main_hbox),preferences_button,FALSE,TRUE,0);
-
-  list_view = tito_setup_results_list();
-  gtk_box_pack_start(GTK_BOX(main_vbox),list_view,TRUE,TRUE,0);
-
-
-  gtk_widget_set_events(dialog, GDK_KEY_RELEASE_MASK);
-  gtk_widget_set_events(dialog, GDK_KEY_PRESS_MASK);
-  gtk_widget_set_events(dialog, GDK_BUTTON_PRESS_MASK);
-  gtk_widget_set_events(preferences_button, GDK_BUTTON_PRESS_MASK);
-
-  g_signal_connect (keyword_entry, "key-release-event", G_CALLBACK (key_released), NULL);
-  g_signal_connect (list, "key_press_event", G_CALLBACK (result_selected), NULL);
-  g_signal_connect (preferences_button, "clicked", G_CALLBACK(context_menu_invoked),NULL);
-  g_signal_connect (dialog, "focus-out-event", G_CALLBACK (on_focus_out), NULL);
-
-  gtk_widget_show (dialog);
-  return TRUE;
+static void
+restore_defaults_button_clicked ( GtkButton *button,
+                                  gpointer   user_data)
+{
+  tito_set_default_preferences();
+  tito_set_prefereces_ui_values();
 }
 
 static void
@@ -440,49 +343,13 @@ tito_set_prefereces_ui_values (void)
 
 }
 
-static void
-modify_position_spins (void)
-{
-  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(specify_radio)))
-    {
-      gtk_widget_set_sensitive(pos_x_hbox, TRUE);
-      gtk_widget_set_sensitive(pos_y_hbox, TRUE);
-    }
-  else
-    {
-      gtk_widget_set_sensitive(pos_x_hbox, FALSE);
-      gtk_widget_set_sensitive(pos_y_hbox, FALSE);
-    }
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(pos_x_spin_button),
-                            (gdouble)(PREF.POSITION_X/gdk_screen_get_width(gdk_screen_get_default())*100));
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(pos_y_spin_button),
-                            (gdouble)(PREF.POSITION_Y/gdk_screen_get_height(gdk_screen_get_default())*100));
-  gtk_spin_button_set_range (GTK_SPIN_BUTTON(pos_x_spin_button),
-                            (gdouble)0, (gdouble)( 100-gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(width_spin_button))));
-}
-
-static void
-tito_clear_history_button_clicked ( GtkButton *button,
-                                    gpointer   user_data)
-{
-  tito_clear_history();
-}
-
-static void
-restore_defaults_button_clicked ( GtkButton *button,
-                                  gpointer   user_data)
-{
-  tito_set_default_preferences();
-  tito_set_prefereces_ui_values();
-}
-
-gboolean
+static gboolean
 on_focus_out (GtkWidget *widget,
               GdkEventFocus *event,
               gpointer data)
 {
   if(!gtk_widget_is_focus(preferences_button))
-    finalizer();
+    tito_finalizer();
   return TRUE;
 }
 
@@ -499,7 +366,7 @@ key_released( GtkWidget *widget,
   {
     case GDK_Escape:
     {
-      finalizer();
+      tito_finalizer();
       return;
     }
     case GDK_Return:
@@ -537,7 +404,7 @@ key_released( GtkWidget *widget,
     }
 }
 
-gboolean
+static gboolean
 result_selected ( GtkWidget * widget,
                   GdkEventKey* pKey,
                   gpointer func_data)
@@ -548,12 +415,12 @@ result_selected ( GtkWidget * widget,
         {
           case GDK_Return:
             {
-                    tito_run_result_action();
+              tito_run_result_action();
               break;
-              }
-            case GDK_Escape:
+            }
+          case GDK_Escape:
             {
-              finalizer();
+              tito_finalizer();
               return TRUE;
             }
           case GDK_Up:
@@ -581,13 +448,54 @@ result_selected ( GtkWidget * widget,
 }
 
 
-void
+static void
 row_activated ( GtkTreeView        *treeview,
                 GtkTreePath        *path,
                 GtkTreeViewColumn  *col,
                 gpointer            userdata)
 {
     tito_run_result_action();
+}
+
+static gboolean
+tito_action_view_accel_find_func (GtkAccelKey *key,
+                                  GClosure    *closure,
+                                  gpointer     data)
+{
+  return (GClosure *) data == closure;
+}
+
+static gchar*
+find_accel_label( GtkAction *action)
+{
+  guint            accel_key     = 0;
+  GdkModifierType  accel_mask    = 0;
+  GClosure        *accel_closure = NULL;
+  gchar           *accel_string;
+  GtkAccelGroup   *accel_group;
+
+  accel_group = gtk_ui_manager_get_accel_group (GTK_UI_MANAGER (manager));
+  accel_closure = gtk_action_get_accel_closure (action);
+
+  if(accel_closure)
+   {
+     GtkAccelKey *key;
+     key = gtk_accel_group_find (accel_group,
+                                 tito_action_view_accel_find_func,
+                                 accel_closure);
+     if (key            &&
+         key->accel_key &&
+         key->accel_flags & GTK_ACCEL_VISIBLE)
+       {
+         accel_key  = key->accel_key;
+         accel_mask = key->accel_mods;
+       }
+   }
+  accel_string = gtk_accelerator_get_label (accel_key, accel_mask);
+  if(strcmp(accel_string,""))
+    return accel_string;
+
+  return NULL;
 }
 
 
@@ -669,7 +577,7 @@ tito_run_result_action(void)
       if(PREF.AUTO_HIDE)
         gtk_widget_hide(dialog);
       gtk_action_activate(action);
-      finalizer();
+      tito_finalizer();
       tito_update_history(action);
     }
   return TRUE;
@@ -856,47 +764,6 @@ tito_is_action_match ( GtkAction *action,
   return FALSE;
 }
 
-static gboolean
-tito_action_view_accel_find_func (GtkAccelKey *key,
-                                  GClosure    *closure,
-                                  gpointer     data)
-{
-  return (GClosure *) data == closure;
-}
-
-static gchar*
-find_accel_label( GtkAction *action)
-{
-  guint            accel_key     = 0;
-  GdkModifierType  accel_mask    = 0;
-  GClosure        *accel_closure = NULL;
-  gchar           *accel_string;
-  GtkAccelGroup   *accel_group;
-
-  accel_group = gtk_ui_manager_get_accel_group (GTK_UI_MANAGER (manager));
-  accel_closure = gtk_action_get_accel_closure (action);
-
-  if(accel_closure)
-   {
-     GtkAccelKey *key;
-     key = gtk_accel_group_find (accel_group,
-                                 tito_action_view_accel_find_func,
-                                 accel_closure);
-     if (key            &&
-         key->accel_key &&
-         key->accel_flags & GTK_ACCEL_VISIBLE)
-       {
-         accel_key  = key->accel_key;
-         accel_mask = key->accel_mods;
-       }
-   }
-  accel_string = gtk_accelerator_get_label (accel_key, accel_mask);
-  if(strcmp(accel_string,""))
-    return accel_string;
-
-  return NULL;
-}
-
 static void
 tito_read_history (void)
 {
@@ -916,6 +783,15 @@ tito_read_history (void)
     }
   fclose(fp);
   tito_fill_history();
+}
+
+static int
+compare ( const void * a,
+              const void * b)
+{
+  struct HISTORY *p = (struct HISTORY *)a;
+  struct HISTORY *q = (struct HISTORY *)b;
+  return (q->count - p->count);
 }
 
 static void
@@ -972,16 +848,8 @@ tito_update_history (GtkAction *action)
   fclose(fp);
 }
 
-int compare ( const void * a,
-              const void * b)
-{
-  struct HISTORY *p = (struct HISTORY *)a;
-  struct HISTORY *q = (struct HISTORY *)b;
-  return (q->count - p->count);
-}
-
 void
-finalizer(void)
+tito_finalizer(void)
 {
   if(!PREF.AUTO_HIDE)
     {
@@ -995,7 +863,7 @@ finalizer(void)
 }
 
 gboolean
-initializer(void)
+tito_initializer(void)
 {
   int i=0;
   if(first_time)
@@ -1087,7 +955,7 @@ tito_update_preferences (void)
     PREF.POSITION_Y = tmp_y*gdk_screen_get_height(gdk_screen_get_default())/100;
   }
   tito_write_preferences();
-  finalizer();
+  tito_finalizer();
 }
 
 static void
@@ -1159,4 +1027,100 @@ context_menu (void)
   g_signal_connect (close_menuitem, "activate", G_CALLBACK (context_menu_handler), NULL);
 
   gtk_menu_popup( GTK_MENU(context_menu), NULL, NULL, NULL, NULL, 0, gtk_get_current_event_time());
+}
+
+static GtkWidget*
+tito_setup_results_list(void)
+{
+  gint wid1=100;
+  GtkWidget *sc_win;
+  GtkListStore *store;
+  GtkCellRenderer *cell1;
+  GtkTreeViewColumn *column1, *column2;
+
+  sc_win= gtk_scrolled_window_new(NULL, NULL);
+  store=gtk_list_store_new(N_COL, G_TYPE_STRING, G_TYPE_STRING, GTK_TYPE_ACTION,G_TYPE_BOOLEAN);
+  list=gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+  gtk_tree_view_set_headers_visible (GTK_TREE_VIEW(list),FALSE);
+
+  cell1 = gtk_cell_renderer_pixbuf_new ();
+  column1=gtk_tree_view_column_new_with_attributes(NULL,
+                                                  cell1,
+                                                  "stock_id", RESULT_ICON,
+                                                  NULL);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(list),column1);
+  gtk_tree_view_column_add_attribute(column1, cell1, "sensitive", IS_SENSITIVE);
+  gtk_tree_view_column_set_min_width(column1,22);
+
+  cell_renderer = gtk_cell_renderer_text_new();
+  column2=gtk_tree_view_column_new_with_attributes(NULL,
+                                                  cell_renderer,
+                                                  "markup", RESULT_DATA,
+                                                  NULL);
+  gtk_tree_view_column_add_attribute(column2, cell_renderer, "sensitive", IS_SENSITIVE);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(list),column2);
+  gtk_tree_view_column_set_max_width(column2,wid1);
+
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sc_win),
+                                 GTK_POLICY_NEVER,
+                                 GTK_POLICY_AUTOMATIC);
+  g_signal_connect(list, "row-activated", (GCallback) row_activated, NULL);
+
+  gtk_container_add(GTK_CONTAINER(sc_win),list);
+  g_object_unref(G_OBJECT(store));
+  return sc_win;
+}
+
+static gboolean
+tito_search_dialog (void)
+{
+  GtkWidget *main_vbox, *main_hbox;
+  GtkWidget *preferences_image;
+
+  dialog= gtk_window_new(GTK_WINDOW_TOPLEVEL);
+
+  gtk_window_set_decorated (GTK_WINDOW(dialog),FALSE);
+  gtk_window_set_default_size (GTK_WINDOW(dialog),(PREF.WIDTH/100)*gdk_screen_get_width(gdk_screen_get_default()),def_height);
+  gtk_window_move (GTK_WINDOW(dialog),PREF.POSITION_X,PREF.POSITION_Y);
+  gtk_window_set_opacity (GTK_WINDOW(dialog),PREF.OPACITY);
+  if(!PREF.AUTO_HIDE)
+    gtk_window_set_keep_above(GTK_WINDOW(dialog),TRUE);
+
+  main_vbox = gtk_vbox_new (FALSE, 2);
+  gtk_container_add (GTK_CONTAINER (dialog), main_vbox);
+  gtk_widget_show (main_vbox);
+
+  main_hbox = gtk_hbox_new (FALSE, 2);
+  gtk_box_pack_start(GTK_BOX(main_vbox),main_hbox,FALSE,TRUE,0);
+  gtk_widget_show (main_hbox);
+
+  keyword_entry = gtk_entry_new();
+  gtk_entry_set_has_frame(GTK_ENTRY(keyword_entry),FALSE);
+  gtk_entry_set_icon_from_stock(GTK_ENTRY(keyword_entry),GTK_ENTRY_ICON_PRIMARY,GTK_STOCK_FIND);
+  gtk_widget_show (keyword_entry);
+  gtk_box_pack_start(GTK_BOX(main_hbox),keyword_entry,TRUE,TRUE,0);
+
+  preferences_image = gtk_image_new_from_stock (GTK_STOCK_PROPERTIES, GTK_ICON_SIZE_MENU);
+  preferences_button = gtk_button_new();
+  gtk_button_set_image (GTK_BUTTON(preferences_button),preferences_image);
+  gtk_widget_show (preferences_image);
+  gtk_widget_show (preferences_button);
+  gtk_box_pack_end(GTK_BOX(main_hbox),preferences_button,FALSE,TRUE,0);
+
+  list_view = tito_setup_results_list();
+  gtk_box_pack_start(GTK_BOX(main_vbox),list_view,TRUE,TRUE,0);
+
+
+  gtk_widget_set_events(dialog, GDK_KEY_RELEASE_MASK);
+  gtk_widget_set_events(dialog, GDK_KEY_PRESS_MASK);
+  gtk_widget_set_events(dialog, GDK_BUTTON_PRESS_MASK);
+  gtk_widget_set_events(preferences_button, GDK_BUTTON_PRESS_MASK);
+
+  g_signal_connect (keyword_entry, "key-release-event", G_CALLBACK (key_released), NULL);
+  g_signal_connect (list, "key_press_event", G_CALLBACK (result_selected), NULL);
+  g_signal_connect (preferences_button, "clicked", G_CALLBACK(context_menu_invoked),NULL);
+  g_signal_connect (dialog, "focus-out-event", G_CALLBACK (on_focus_out), NULL);
+
+  gtk_widget_show (dialog);
+  return TRUE;
 }
