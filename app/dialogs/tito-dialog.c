@@ -64,19 +64,6 @@ static GtkWidget        *list_view;
 static GtkWidget        *keyword_entry;
 static GtkWidget        *preferences_button;
 
-static GtkWidget        *specify_radio;
-static GtkWidget        *pos_x_hbox;
-static GtkWidget        *pos_y_hbox;
-static GtkWidget        *right_top_radio;
-static GtkWidget        *middle_radio;
-static GtkWidget        *pos_x_spin_button;
-static GtkWidget        *pos_y_spin_button;
-static GtkWidget        *no_of_results_spin_button;
-static GtkWidget        *width_spin_button;
-static GtkWidget        *opacity_spin_button;
-static GtkWidget        *autohide_check_button;
-static GtkWidget        *show_insensitive_check_button;
-
 GimpUIManager           *manager;
 static gchar            *history_file_path;
 static gchar            *preference_file_path;
@@ -96,25 +83,40 @@ enum RES_COL {
 };
 
 static struct HISTORY {
-  GtkAction* history_action;
-  int count;
+  GtkAction        *history_action;
+  int               count;
 }history[MAX_HISTORY_ACTIONS];
 
 static struct HISTORY_ACTION_NAME{
-  char* action_name;
-  int   no;
+  char             *action_name;
+  int               no;
 }name[MAX_HISTORY_ACTIONS];
 
 static struct PREFERENCES {
-  int POSITION;
-  float POSITION_X;
-  float POSITION_Y;
-  int NO_OF_RESULTS;
-  float WIDTH;
-  gboolean AUTO_HIDE;
-  gboolean SHOW_INSENSITIVE;
-  gdouble OPACITY;
+  int               POSITION;
+  float             POSITION_X;
+  float             POSITION_Y;
+  int               NO_OF_RESULTS;
+  float             WIDTH;
+  gboolean          AUTO_HIDE;
+  gboolean          SHOW_INSENSITIVE;
+  gdouble           OPACITY;
 }PREF;
+
+static struct TITO_PREF_UI{
+  GtkWidget        *specify_radio;
+  GtkWidget        *pos_x_hbox;
+  GtkWidget        *pos_y_hbox;
+  GtkWidget        *right_top_radio;
+  GtkWidget        *middle_radio;
+  GtkWidget        *pos_x_spin_button;
+  GtkWidget        *pos_y_spin_button;
+  GtkWidget        *no_of_results_spin_button;
+  GtkWidget        *width_spin_button;
+  GtkWidget        *opacity_spin_button;
+  GtkWidget        *autohide_check_button;
+  GtkWidget        *show_insensitive_check_button;
+}PREF_UI;
 
 GtkWidget *
 tito_dialog_create (void)
@@ -128,22 +130,23 @@ tito_dialog_create (void)
 static void
 modify_position_spins (void)
 {
-  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(specify_radio)))
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(PREF_UI.specify_radio)))
     {
-      gtk_widget_set_sensitive(pos_x_hbox, TRUE);
-      gtk_widget_set_sensitive(pos_y_hbox, TRUE);
+      gtk_widget_set_sensitive(PREF_UI.pos_x_hbox, TRUE);
+      gtk_widget_set_sensitive(PREF_UI.pos_y_hbox, TRUE);
     }
   else
     {
-      gtk_widget_set_sensitive(pos_x_hbox, FALSE);
-      gtk_widget_set_sensitive(pos_y_hbox, FALSE);
+      gtk_widget_set_sensitive(PREF_UI.pos_x_hbox, FALSE);
+      gtk_widget_set_sensitive(PREF_UI.pos_y_hbox, FALSE);
     }
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(pos_x_spin_button),
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(PREF_UI.pos_x_spin_button),
                             (gdouble)(PREF.POSITION_X/gdk_screen_get_width(gdk_screen_get_default())*100));
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(pos_y_spin_button),
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(PREF_UI.pos_y_spin_button),
                             (gdouble)(PREF.POSITION_Y/gdk_screen_get_height(gdk_screen_get_default())*100));
-  gtk_spin_button_set_range (GTK_SPIN_BUTTON(pos_x_spin_button),
-                            (gdouble)0, (gdouble)( 100-gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(width_spin_button))));
+  gtk_spin_button_set_range (GTK_SPIN_BUTTON(PREF_UI.pos_x_spin_button),
+                            (gdouble)0,
+                            (gdouble)( 100-gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(PREF_UI.width_spin_button))));
 }
 
 static void
@@ -165,19 +168,19 @@ static void
 tito_set_prefereces_ui_values (void)
 {
   if( PREF.POSITION == 0)
-    gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(right_top_radio), TRUE);
+    gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(PREF_UI.right_top_radio), TRUE);
   else if( PREF.POSITION == 1)
-    gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(middle_radio), TRUE);
+    gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(PREF_UI.middle_radio), TRUE);
   else
-      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(specify_radio), TRUE);
+      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(PREF_UI.specify_radio), TRUE);
 
   modify_position_spins();
 
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(no_of_results_spin_button), (gdouble)PREF.NO_OF_RESULTS);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(width_spin_button), (gdouble)PREF.WIDTH);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(opacity_spin_button), (gdouble)PREF.OPACITY*100);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autohide_check_button), PREF.AUTO_HIDE);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_insensitive_check_button), PREF.SHOW_INSENSITIVE);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(PREF_UI.no_of_results_spin_button), (gdouble)PREF.NO_OF_RESULTS);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(PREF_UI.width_spin_button), (gdouble)PREF.WIDTH);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(PREF_UI.opacity_spin_button), (gdouble)PREF.OPACITY*100);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(PREF_UI.autohide_check_button), PREF.AUTO_HIDE);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(PREF_UI.show_insensitive_check_button), PREF.SHOW_INSENSITIVE);
 
 }
 
@@ -760,22 +763,22 @@ tito_set_default_preferences (void)
 static void
 tito_update_preferences (void)
 {
-  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(right_top_radio)))
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(PREF_UI.right_top_radio)))
     PREF.POSITION = 0;
-  else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(middle_radio)))
+  else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(PREF_UI.middle_radio)))
     PREF.POSITION = 1;
   else
     {
       PREF.POSITION = 2;
-      tmp_x = (gfloat) gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pos_x_spin_button));
-      tmp_y = (gfloat) gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pos_y_spin_button));
+      tmp_x = (gfloat) gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(PREF_UI.pos_x_spin_button));
+      tmp_y = (gfloat) gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(PREF_UI.pos_y_spin_button));
     }
 
-  PREF.NO_OF_RESULTS    = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(no_of_results_spin_button));
-  PREF.WIDTH            = (gfloat)gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(width_spin_button));
-  PREF.OPACITY          = (gdouble)gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(opacity_spin_button))/100;
-  PREF.AUTO_HIDE        = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(autohide_check_button));
-  PREF.SHOW_INSENSITIVE = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(show_insensitive_check_button));
+  PREF.NO_OF_RESULTS    = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(PREF_UI.no_of_results_spin_button));
+  PREF.WIDTH            = (gfloat)gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(PREF_UI.width_spin_button));
+  PREF.OPACITY          = (gdouble)gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(PREF_UI.opacity_spin_button))/100;
+  PREF.AUTO_HIDE        = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(PREF_UI.autohide_check_button));
+  PREF.SHOW_INSENSITIVE = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(PREF_UI.show_insensitive_check_button));
 
   if(PREF.POSITION == 0)
   {
@@ -912,33 +915,33 @@ tito_preferences_dialog (void)
 
   gtk_frame_set_shadow_type (GTK_FRAME(position_frame), GTK_SHADOW_ETCHED_IN);
 
-  right_top_radio = gtk_radio_button_new_with_label(NULL,"Right-Top");
-  middle_radio = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (right_top_radio), "Middle");
-  specify_radio = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (right_top_radio), "Specify");
-  pos_x_hbox = gtk_hbox_new(FALSE, 1);
-  pos_y_hbox = gtk_hbox_new(FALSE, 1);
+  PREF_UI.right_top_radio = gtk_radio_button_new_with_label(NULL,"Right-Top");
+  PREF_UI.middle_radio = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (PREF_UI.right_top_radio), "Middle");
+  PREF_UI.specify_radio = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (PREF_UI.right_top_radio), "Specify");
+  PREF_UI.pos_x_hbox = gtk_hbox_new(FALSE, 1);
+  PREF_UI.pos_y_hbox = gtk_hbox_new(FALSE, 1);
   specify_alignment_x = gtk_alignment_new (1,0,0,0);
   specify_alignment_y = gtk_alignment_new (1,0,0,0);
   pos_x_label = gtk_label_new("x:");
   pos_y_label = gtk_label_new("y:");
-  pos_x_spin_button = gtk_spin_button_new_with_range (0, 100-PREF.WIDTH, 1);
-  pos_y_spin_button = gtk_spin_button_new_with_range (0, 50, 1);
+  PREF_UI.pos_x_spin_button = gtk_spin_button_new_with_range (0, 100-PREF.WIDTH, 1);
+  PREF_UI.pos_y_spin_button = gtk_spin_button_new_with_range (0, 50, 1);
 
   gtk_box_pack_start (GTK_BOX(top_hbox), position_frame, FALSE, FALSE, 2);
   gtk_container_add (GTK_CONTAINER(position_frame), position_vbox);
-      gtk_box_pack_start (GTK_BOX (position_vbox), right_top_radio, TRUE, TRUE, 2);
-      gtk_box_pack_start (GTK_BOX (position_vbox), middle_radio, TRUE, TRUE, 2);
-      gtk_box_pack_start (GTK_BOX (position_vbox), specify_radio, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (position_vbox), PREF_UI.right_top_radio, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (position_vbox), PREF_UI.middle_radio, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (position_vbox), PREF_UI.specify_radio, TRUE, TRUE, 2);
 
       gtk_box_pack_start (GTK_BOX (position_vbox), specify_alignment_x, TRUE, TRUE, 1);
-          gtk_container_add (GTK_CONTAINER (specify_alignment_x), pos_x_hbox);
-              gtk_box_pack_start (GTK_BOX (pos_x_hbox),pos_x_label, TRUE, TRUE, 1);
-              gtk_box_pack_start (GTK_BOX (pos_x_hbox),pos_x_spin_button, TRUE, TRUE, 1);
+          gtk_container_add (GTK_CONTAINER (specify_alignment_x), PREF_UI.pos_x_hbox);
+              gtk_box_pack_start (GTK_BOX (PREF_UI.pos_x_hbox),pos_x_label, TRUE, TRUE, 1);
+              gtk_box_pack_start (GTK_BOX (PREF_UI.pos_x_hbox),PREF_UI.pos_x_spin_button, TRUE, TRUE, 1);
 
       gtk_box_pack_start (GTK_BOX (position_vbox), specify_alignment_y, TRUE, TRUE, 1);
-          gtk_container_add (GTK_CONTAINER (specify_alignment_y), pos_y_hbox);
-              gtk_box_pack_start (GTK_BOX (pos_y_hbox),pos_y_label, TRUE, TRUE, 1);
-              gtk_box_pack_start (GTK_BOX (pos_y_hbox),pos_y_spin_button, TRUE, TRUE, 1);
+          gtk_container_add (GTK_CONTAINER (specify_alignment_y), PREF_UI.pos_y_hbox);
+              gtk_box_pack_start (GTK_BOX (PREF_UI.pos_y_hbox),pos_y_label, TRUE, TRUE, 1);
+              gtk_box_pack_start (GTK_BOX (PREF_UI.pos_y_hbox),PREF_UI.pos_y_spin_button, TRUE, TRUE, 1);
 
   //Display preferences
   display_frame = gtk_frame_new("Display");
@@ -950,13 +953,13 @@ tito_preferences_dialog (void)
   width_hbox = gtk_hbox_new(FALSE,2);
   opacity_hbox = gtk_hbox_new(FALSE,2);
   no_of_results_label = gtk_label_new("Results height:");
-  no_of_results_spin_button = gtk_spin_button_new_with_range(2,10,1);
+  PREF_UI.no_of_results_spin_button = gtk_spin_button_new_with_range(2,10,1);
   width_label = gtk_label_new("Tito Width:");
-  width_spin_button = gtk_spin_button_new_with_range(20,60,1);
+  PREF_UI.width_spin_button = gtk_spin_button_new_with_range(20,60,1);
   opacity_label = gtk_label_new("Tito Opacity:");
-  opacity_spin_button = gtk_spin_button_new_with_range(40,100,10);
-  autohide_check_button = gtk_check_button_new_with_label("Autohide");
-  show_insensitive_check_button = gtk_check_button_new_with_label("Show inert actions");
+  PREF_UI.opacity_spin_button = gtk_spin_button_new_with_range(40,100,10);
+  PREF_UI.autohide_check_button = gtk_check_button_new_with_label("Autohide");
+  PREF_UI.show_insensitive_check_button = gtk_check_button_new_with_label("Show inert actions");
   tito_clear_history_button = gtk_button_new_with_label ("Clear history");
   restore_defaults_button = gtk_button_new_with_label ("Restore defaults");
 
@@ -964,15 +967,15 @@ tito_preferences_dialog (void)
   gtk_container_add (GTK_CONTAINER(display_frame), display_vbox);
       gtk_box_pack_start (GTK_BOX (display_vbox), no_of_results_hbox, TRUE, TRUE, 2);
           gtk_box_pack_start (GTK_BOX (no_of_results_hbox), no_of_results_label, TRUE, TRUE, 2);
-          gtk_box_pack_start (GTK_BOX (no_of_results_hbox), no_of_results_spin_button, TRUE, TRUE, 2);
+          gtk_box_pack_start (GTK_BOX (no_of_results_hbox), PREF_UI.no_of_results_spin_button, TRUE, TRUE, 2);
       gtk_box_pack_start (GTK_BOX (display_vbox), width_hbox, TRUE, TRUE, 2);
           gtk_box_pack_start (GTK_BOX (width_hbox), width_label, TRUE, TRUE, 2);
-          gtk_box_pack_start (GTK_BOX (width_hbox), width_spin_button, TRUE, TRUE, 2);
+          gtk_box_pack_start (GTK_BOX (width_hbox), PREF_UI.width_spin_button, TRUE, TRUE, 2);
       gtk_box_pack_start (GTK_BOX (display_vbox), opacity_hbox, TRUE, TRUE, 2);
           gtk_box_pack_start (GTK_BOX (opacity_hbox), opacity_label, TRUE, TRUE, 2);
-          gtk_box_pack_start (GTK_BOX (opacity_hbox), opacity_spin_button, TRUE, TRUE, 2);
-      gtk_box_pack_start (GTK_BOX (display_vbox), autohide_check_button, TRUE, TRUE, 2);
-      gtk_box_pack_start (GTK_BOX (display_vbox), show_insensitive_check_button, TRUE, TRUE, 2);
+          gtk_box_pack_start (GTK_BOX (opacity_hbox), PREF_UI.opacity_spin_button, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (display_vbox), PREF_UI.autohide_check_button, TRUE, TRUE, 2);
+      gtk_box_pack_start (GTK_BOX (display_vbox), PREF_UI.show_insensitive_check_button, TRUE, TRUE, 2);
 
   //Clear and restore
   bottom_hbox = gtk_hbox_new(TRUE,2);
@@ -983,9 +986,9 @@ tito_preferences_dialog (void)
   tito_set_prefereces_ui_values();
   gtk_widget_show_all (pref_dialog);
 
-  g_signal_connect (right_top_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
-  g_signal_connect (middle_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
-  g_signal_connect (specify_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
+  g_signal_connect (PREF_UI.right_top_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
+  g_signal_connect (PREF_UI.middle_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
+  g_signal_connect (PREF_UI.specify_radio, "toggled", G_CALLBACK (modify_position_spins), NULL);
   g_signal_connect (tito_clear_history_button, "clicked", G_CALLBACK (tito_clear_history_button_clicked), NULL);
   g_signal_connect (restore_defaults_button, "clicked", G_CALLBACK (restore_defaults_button_clicked), NULL);
 
