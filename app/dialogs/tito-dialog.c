@@ -58,7 +58,7 @@ gboolean            tito_initializer                   (void);
 void                tito_finalizer                     (void);
 static void         tito_context_menu                  (void);
 
-static GtkWidget        *dialog;
+static GtkWidget        *tito_dialog;
 static GtkWidget        *list;
 static GtkWidget        *list_view;
 static GtkWidget        *keyword_entry;
@@ -71,6 +71,8 @@ static gint              cur_no_of_his_actions;
 static gint              default_height = 1;
 static gboolean          first_time = TRUE;
 static gint              tmp_x, tmp_y;
+static gint              par_x, par_y;
+static gint              par_height, par_width;
 static GtkCellRenderer  *cell_renderer;
 
 
@@ -124,7 +126,7 @@ tito_dialog_create (void)
   if(!tito_initializer())
     g_message("Tito tito_initializer failed");
   tito_search_dialog();
-  return dialog;
+  return tito_dialog;
 }
 
 static void
@@ -141,9 +143,9 @@ modify_position_spins (void)
       gtk_widget_set_sensitive(PREF_UI.pos_y_hbox, FALSE);
     }
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(PREF_UI.pos_x_spin_button),
-                            (gdouble)(PREF.POSITION_X/gdk_screen_get_width(gdk_screen_get_default())*100));
+                            (gdouble)(PREF.POSITION_X/par_width*100));
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(PREF_UI.pos_y_spin_button),
-                            (gdouble)(PREF.POSITION_Y/gdk_screen_get_height(gdk_screen_get_default())*100));
+                            (gdouble)(PREF.POSITION_Y/par_height*100));
   gtk_spin_button_set_range (GTK_SPIN_BUTTON(PREF_UI.pos_x_spin_button),
                             (gdouble)0,
                             (gdouble)( 100-gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(PREF_UI.width_spin_button))));
@@ -219,7 +221,7 @@ key_released( GtkWidget *widget,
 
   if(strcmp(entry_text,"")!=0)
     {
-      gtk_window_resize(GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,
+      gtk_window_resize(GTK_WINDOW(tito_dialog),(PREF.WIDTH * par_width)/100,
                        (PREF.NO_OF_RESULTS*40+100));
       gtk_list_store_clear (GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(list))));
       gtk_widget_show_all(list_view);
@@ -229,7 +231,7 @@ key_released( GtkWidget *widget,
     }
   else if(strcmp(entry_text,"")==0 && (event->keyval == GDK_Down) )
     {
-      gtk_window_resize(GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,
+      gtk_window_resize(GTK_WINDOW(tito_dialog),(PREF.WIDTH * par_width)/100,
                        (PREF.NO_OF_RESULTS*40+100));
       gtk_list_store_clear (GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(list))));
       gtk_widget_show_all(list_view);
@@ -241,7 +243,7 @@ key_released( GtkWidget *widget,
   else
     {
       gtk_widget_hide(list_view);
-      gtk_window_resize (GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,default_height);
+      gtk_window_resize (GTK_WINDOW(tito_dialog),(PREF.WIDTH * par_width)/100,default_height);
     }
 }
 
@@ -416,7 +418,7 @@ tito_run_result_action (void)
         return FALSE;
 
       if(PREF.AUTO_HIDE)
-        gtk_widget_hide(dialog);
+        gtk_widget_hide(tito_dialog);
       gtk_action_activate(action);
       tito_finalizer();
       tito_update_history(action);
@@ -689,24 +691,50 @@ tito_update_history (GtkAction *action)
   fclose(fp);
 }
 
+static void
+tito_update_position (void)
+{
+  if(PREF.POSITION == 0)
+  {
+    PREF.POSITION_X = (1-PREF.WIDTH/100)*par_width+par_x;
+    PREF.POSITION_Y = 0.04*par_height+par_y;
+  }
+  else if(PREF.POSITION == 1)
+  {
+    PREF.POSITION_X = (par_width- PREF.WIDTH*par_width*.01)/2 + par_x;
+    PREF.POSITION_Y = 0.2*par_height + par_y;
+  }
+  else
+  {
+    PREF.POSITION_X = tmp_x*par_width/100 + par_x;
+    PREF.POSITION_Y = tmp_y*par_height/100 + par_y;
+  }
+  gtk_window_move (GTK_WINDOW(tito_dialog),PREF.POSITION_X,PREF.POSITION_Y);
+}
+
 void
 tito_finalizer(void)
 {
   if(!PREF.AUTO_HIDE)
     {
       gtk_widget_hide(list_view);
-      gtk_window_resize (GTK_WINDOW(dialog),(PREF.WIDTH * gdk_screen_get_width(gdk_screen_get_default()))/100,default_height);
+      gtk_window_resize (GTK_WINDOW(tito_dialog),PREF.WIDTH*par_width/100,default_height);
       gtk_entry_set_text(GTK_ENTRY(keyword_entry),"");
       gtk_widget_grab_focus(keyword_entry);
     }
   else
-    gtk_widget_destroy(dialog);
+    gtk_widget_destroy(tito_dialog);
 }
 
 gboolean
 tito_initializer(void)
 {
   int i=0;
+  GdkWindow *par_window = gdk_screen_get_active_window(gdk_screen_get_default());
+  gdk_window_get_geometry (par_window, &par_x, &par_y, &par_width, &par_height, NULL);
+  tito_update_position();
+  g_message("width:%d,height:%d,x:%d,y:%d",par_width, par_height, par_x, par_y);
+                                                         
   if(first_time)
   {
     history_file_path= g_new(gchar, 1024);
@@ -750,15 +778,14 @@ tito_set_default_preferences (void)
 {
  PREF.POSITION = 0;
  PREF.WIDTH = 40;
- PREF.POSITION_X = (1-0.4)*gdk_screen_get_width(gdk_screen_get_default());
- PREF.POSITION_Y = 0.04*gdk_screen_get_height(gdk_screen_get_default());
+ PREF.POSITION_X = (1-0.4)*par_width+par_x;
+ PREF.POSITION_Y = 0.04*par_height+par_y;
  PREF.NO_OF_RESULTS = 4;
  PREF.AUTO_HIDE = TRUE;
  PREF.SHOW_INSENSITIVE = TRUE;
  PREF.OPACITY = 1;
  tito_write_preferences();
 }
-
 
 static void
 tito_update_preferences (void)
@@ -780,21 +807,7 @@ tito_update_preferences (void)
   PREF.AUTO_HIDE        = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(PREF_UI.autohide_check_button));
   PREF.SHOW_INSENSITIVE = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(PREF_UI.show_insensitive_check_button));
 
-  if(PREF.POSITION == 0)
-  {
-    PREF.POSITION_X = (1-PREF.WIDTH/100)*gdk_screen_get_width(gdk_screen_get_default());
-    PREF.POSITION_Y = 0.04*gdk_screen_get_height(gdk_screen_get_default());
-  }
-  else if(PREF.POSITION == 1)
-  {
-    PREF.POSITION_X = (gdk_screen_get_width(gdk_screen_get_default())- PREF.WIDTH*gdk_screen_get_width(gdk_screen_get_default())*.01)/2;
-    PREF.POSITION_Y = 0.2*gdk_screen_get_height(gdk_screen_get_default());
-  }
-  else
- {
-    PREF.POSITION_X = tmp_x*gdk_screen_get_width(gdk_screen_get_default())/100;
-    PREF.POSITION_Y = tmp_y*gdk_screen_get_height(gdk_screen_get_default())/100;
-  }
+  tito_update_position();
   tito_write_preferences();
   tito_finalizer();
 }
@@ -843,7 +856,7 @@ context_menu_handler( GtkMenuItem* menuitem,
   if(strchr(gtk_menu_item_get_label(menuitem),'r')!=NULL)
     tito_preferences_dialog();
   else
-    gtk_widget_destroy(dialog);
+    gtk_widget_destroy(tito_dialog);
 }
 
 static void
@@ -1045,17 +1058,17 @@ tito_search_dialog (void)
   GtkWidget *main_vbox, *main_hbox;
   GtkWidget *preferences_image;
 
-  dialog= gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  tito_dialog= gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
-  gtk_window_set_decorated (GTK_WINDOW(dialog),FALSE);
-  gtk_window_set_default_size (GTK_WINDOW(dialog),(PREF.WIDTH/100)*gdk_screen_get_width(gdk_screen_get_default()),default_height);
-  gtk_window_move (GTK_WINDOW(dialog),PREF.POSITION_X,PREF.POSITION_Y);
-  gtk_window_set_opacity (GTK_WINDOW(dialog),PREF.OPACITY);
+  gtk_window_set_decorated (GTK_WINDOW(tito_dialog),FALSE);
+  gtk_window_set_default_size (GTK_WINDOW(tito_dialog),(PREF.WIDTH/100)*par_width,default_height);
+  tito_update_position();
+  gtk_window_set_opacity (GTK_WINDOW(tito_dialog),PREF.OPACITY);
   if(!PREF.AUTO_HIDE)
-    gtk_window_set_keep_above(GTK_WINDOW(dialog),TRUE);
+    gtk_window_set_keep_above(GTK_WINDOW(tito_dialog),TRUE);
 
   main_vbox = gtk_vbox_new (FALSE, 2);
-  gtk_container_add (GTK_CONTAINER (dialog), main_vbox);
+  gtk_container_add (GTK_CONTAINER (tito_dialog), main_vbox);
   gtk_widget_show (main_vbox);
 
   main_hbox = gtk_hbox_new (FALSE, 2);
@@ -1079,17 +1092,17 @@ tito_search_dialog (void)
   gtk_box_pack_start(GTK_BOX(main_vbox),list_view,TRUE,TRUE,0);
 
 
-  gtk_widget_set_events(dialog, GDK_KEY_RELEASE_MASK);
-  gtk_widget_set_events(dialog, GDK_KEY_PRESS_MASK);
-  gtk_widget_set_events(dialog, GDK_BUTTON_PRESS_MASK);
+  gtk_widget_set_events(tito_dialog, GDK_KEY_RELEASE_MASK);
+  gtk_widget_set_events(tito_dialog, GDK_KEY_PRESS_MASK);
+  gtk_widget_set_events(tito_dialog, GDK_BUTTON_PRESS_MASK);
   gtk_widget_set_events(preferences_button, GDK_BUTTON_PRESS_MASK);
 
   g_signal_connect(list, "row-activated", (GCallback) row_activated, NULL);
   g_signal_connect (keyword_entry, "key-release-event", G_CALLBACK (key_released), NULL);
   g_signal_connect (list, "key_press_event", G_CALLBACK (result_selected), NULL);
   g_signal_connect (preferences_button, "clicked", G_CALLBACK(context_menu_invoked),NULL);
-  g_signal_connect (dialog, "focus-out-event", G_CALLBACK (on_focus_out), NULL);
+  g_signal_connect (tito_dialog, "focus-out-event", G_CALLBACK (on_focus_out), NULL);
 
-  gtk_widget_show (dialog);
+  gtk_widget_show (tito_dialog);
   return TRUE;
 }
