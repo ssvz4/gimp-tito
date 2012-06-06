@@ -733,7 +733,6 @@ tito_initializer(void)
   GdkWindow *par_window = gdk_screen_get_active_window(gdk_screen_get_default());
   gdk_window_get_geometry (par_window, &par_x, &par_y, &par_width, &par_height, NULL);
   tito_update_position();
-  g_message("width:%d,height:%d,x:%d,y:%d",par_width, par_height, par_x, par_y);
                                                          
   if(first_time)
   {
