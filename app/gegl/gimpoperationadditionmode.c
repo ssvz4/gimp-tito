@@ -33,8 +33,7 @@ static gboolean gimp_operation_addition_mode_process (GeglOperation       *opera
                                                       void                *aux_buf,
                                                       void                *out_buf,
                                                       glong                samples,
-                                                      const GeglRectangle *roi,
-                                                      gint                 level);
+                                                      const GeglRectangle *roi);
 
 
 G_DEFINE_TYPE (GimpOperationAdditionMode, gimp_operation_addition_mode,
@@ -69,8 +68,7 @@ gimp_operation_addition_mode_process (GeglOperation       *operation,
                                       void                *aux_buf,
                                       void                *out_buf,
                                       glong                samples,
-                                      const GeglRectangle *roi,
-                                      gint                 level)
+                                      const GeglRectangle *roi)
 {
   gfloat *in    = in_buf;
   gfloat *layer = aux_buf;

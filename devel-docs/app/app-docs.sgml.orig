@@ -734,8 +734,13 @@
       <xi:include href="xml/gimpcanvasrectangleguides.xml" />
       <xi:include href="xml/gimpcanvassamplepoint.xml" />
       <xi:include href="xml/gimpcanvastextcursor.xml" />
+<<<<<<< HEAD
       <xi:include href="xml/gimpcanvastransformguides.xml" />
       <xi:include href="xml/gimpcanvastransformpreview.xml" />
+=======
+      <xi:include href="xml/gimpcanvasgransformguides.xml" />
+      <xi:include href="xml/gimpcanvasgransformpreview.xml" />
+>>>>>>> devel-docs: make app/ docs build again and update them a bit
     </chapter>
 
     <chapter id="app-display-utils">
@@ -1043,6 +1048,10 @@
       <xi:include href="xml/gimpmessagedialog.xml" />
       <xi:include href="xml/gimpprofilechooserdialog.xml" />
       <xi:include href="xml/gimpprogressdialog.xml" />
+<<<<<<< HEAD
+=======
+      <xi:include href="xml/gimptooldialog.xml" />
+>>>>>>> devel-docs: make app/ docs build again and update them a bit
       <xi:include href="xml/gimpviewabledialog.xml" />
     </chapter>
 
@@ -1066,6 +1075,7 @@
       <xi:include href="xml/gimptexttag.xml" />
     </chapter>
 
+<<<<<<< HEAD
     <chapter id="app-widgets-offscreen-overlays">
       <title>Offscreen Overlay Widgets</title>
       <xi:include href="xml/gimpoverlaybox.xml" />
@@ -1074,6 +1084,8 @@
       <xi:include href="xml/gimpoverlayframe.xml" />
     </chapter>
 
+=======
+>>>>>>> devel-docs: make app/ docs build again and update them a bit
     <chapter id="app-widgets-misc-widgets">
       <title>Misc. Widgets</title>
       <xi:include href="xml/gimpactioneditor.xml" />
