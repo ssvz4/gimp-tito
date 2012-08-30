@@ -237,13 +237,13 @@ gimp_cage_tool_control (GimpTool       *tool,
 
       if (ct->image_map)
         {
-          gimp_tool_control_set_preserve (tool->control, TRUE);
+          gimp_tool_control_push_preserve (tool->control, TRUE);
 
           gimp_image_map_abort (ct->image_map);
           g_object_unref (ct->image_map);
           ct->image_map = NULL;
 
-          gimp_tool_control_set_preserve (tool->control, FALSE);
+          gimp_tool_control_pop_preserve (tool->control);
 
           gimp_image_flush (gimp_display_get_image (tool->display));
         }
@@ -418,7 +418,7 @@ gimp_cage_tool_key_press (GimpTool    *tool,
     case GDK_KEY_Return:
     case GDK_KEY_KP_Enter:
     case GDK_KEY_ISO_Enter:
-      if (! ct->cage_complete)
+      if (ct->cage_complete == FALSE && gimp_cage_config_get_n_points (ct->config) > 2)
         {
           g_object_set (gimp_tool_get_options (tool),
                         "cage-mode", GIMP_CAGE_MODE_DEFORM,
@@ -426,13 +426,13 @@ gimp_cage_tool_key_press (GimpTool    *tool,
         }
       else if (ct->tool_state == DEFORM_STATE_WAIT)
         {
-          gimp_tool_control_set_preserve (tool->control, TRUE);
+          gimp_tool_control_push_preserve (tool->control, TRUE);
 
           gimp_image_map_commit (ct->image_map);
           g_object_unref (ct->image_map);
           ct->image_map = NULL;
 
-          gimp_tool_control_set_preserve (tool->control, FALSE);
+          gimp_tool_control_pop_preserve (tool->control);
 
           gimp_image_flush (gimp_display_get_image (display));
 
@@ -565,7 +565,7 @@ gimp_cage_tool_button_press (GimpTool            *tool,
       case CAGE_STATE_WAIT:
         if (ct->cage_complete == FALSE)
           {
-            if (handle == -1 && edge == -1)
+            if (handle == -1 && edge <= 0)
               {
                 /* User clicked on the background, we add a new handle
                  * and move it
@@ -608,7 +608,7 @@ gimp_cage_tool_button_press (GimpTool            *tool,
 
                 ct->tool_state = CAGE_STATE_MOVE_HANDLE;
               }
-            else if (edge >= 0)
+            else if (edge > 0)
               {
                 /* User clicked on an edge, we add a new handle here and select it */
 

@@ -172,12 +172,24 @@ gimp_display_shell_render (GimpDisplayShell *shell,
       g_assert_not_reached ();
     }
 
-  cairo_surface_mark_dirty (shell->render_surface);
-
   /*  apply filters to the rendered projection  */
   if (shell->filter_stack)
-    gimp_color_display_stack_convert_surface (shell->filter_stack,
-                                              shell->render_surface);
+    {
+      cairo_surface_t *sub = shell->render_surface;
+
+      if (w != GIMP_DISPLAY_RENDER_BUF_WIDTH ||
+          h != GIMP_DISPLAY_RENDER_BUF_HEIGHT)
+        sub = cairo_image_surface_create_for_data (cairo_image_surface_get_data (sub),
+                                                   CAIRO_FORMAT_ARGB32, w, h,
+                                                   GIMP_DISPLAY_RENDER_BUF_WIDTH * 4);
+
+      gimp_color_display_stack_convert_surface (shell->filter_stack, sub);
+
+      if (sub != shell->render_surface)
+        cairo_surface_destroy (sub);
+    }
+
+  cairo_surface_mark_dirty_rectangle (shell->render_surface, 0, 0, w, h);
 
   if (shell->mask)
     {
@@ -516,7 +528,7 @@ box_filter_premult (const guint    left_weight,
 
           for (i = 0; i < ALPHA; i++)
             {
-              dest[i] = ((center_weight * (factors[0] * src[1][i] +
+              dest[i] =  (center_weight * (factors[0] * src[1][i] +
                                            factors[1] * src[4][i] +
                                            factors[2] * src[7][i]) +
 
@@ -526,7 +538,7 @@ box_filter_premult (const guint    left_weight,
 
                           left_weight   * (factors[6] * src[0][i] +
                                            factors[7] * src[3][i] +
-                                           factors[8] * src[6][i])) / sum) >> 8;
+                                           factors[8] * src[6][i]) + ((255 * sum) >> 1)) / (255 * sum);
             }
 
           dest[ALPHA] = (a + (sum >> 1)) / sum;
@@ -563,7 +575,7 @@ box_filter_premult (const guint    left_weight,
 
           for (i = 0; i < ALPHA; i++)
             {
-              dest[i] = ((center_weight * (factors[0] * src[1][i] +
+              dest[i] =  (center_weight * (factors[0] * src[1][i] +
                                            factors[1] * src[4][i] +
                                            factors[2] * src[7][i]) +
 
@@ -573,7 +585,7 @@ box_filter_premult (const guint    left_weight,
 
                           left_weight   * (factors[6] * src[0][i] +
                                            factors[7] * src[3][i] +
-                                           factors[8] * src[6][i])) / sum) >> 8;
+                                           factors[8] * src[6][i]) + ((255 * sum) >> 1)) / (sum * 255);
             }
 
           dest[ALPHA] = (a + (sum >> 1)) / sum;

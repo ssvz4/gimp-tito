@@ -53,6 +53,7 @@
 #include "core/gimpprogress.h"
 #include "core/gimpselection.h"
 #include "core/gimpunit.h"
+#include "file/file-utils.h"
 #include "vectors/gimpvectors.h"
 
 #include "gimppdb.h"
@@ -2286,7 +2287,11 @@ image_get_name_invoker (GimpProcedure      *procedure,
 
   if (success)
     {
-      name = g_strdup (gimp_image_get_display_name (image));
+      /* XXX do we really want to return this, or the name as in the title? */
+
+      const gchar *uri = gimp_image_get_uri_or_untitled (image);
+
+      name = file_utils_uri_display_basename (uri);
     }
 
   return_vals = gimp_procedure_get_return_values (procedure, success,
@@ -3664,7 +3669,7 @@ register_image_procs (GimpPDB *pdb)
   gimp_procedure_set_static_strings (procedure,
                                      "gimp-image-insert-layer",
                                      "Add the specified layer to the image.",
-                                     "This procedure adds the specified layer to the image at the given position. If the specified parent is a valid layer group (See 'gimp-item-is-group' and 'gimp-layer-group-new') then the layer is added inside the group. If the parent is 0, the layer is added inside the main stack, outside of any group. The position argument specifies the location of the layer inside the stack (or the group, if a valid parent was supplied), starting from the top (0) and increasing. If the position is specified as -1 and the parent is specified as 0, then the layer is inserted above the active layer. The layer type must be compatible with the image base type.",
+                                     "This procedure adds the specified layer to the image at the given position. If the specified parent is a valid layer group (See 'gimp-item-is-group' and 'gimp-layer-group-new') then the layer is added inside the group. If the parent is 0, the layer is added inside the main stack, outside of any group. The position argument specifies the location of the layer inside the stack (or the group, if a valid parent was supplied), starting from the top (0) and increasing. If the position is specified as -1 and the parent is specified as 0, then the layer is inserted above the active layer, or inside the group if the active layer is a layer group. The layer type must be compatible with the image base type.",
                                      "Spencer Kimball & Peter Mattis",
                                      "Spencer Kimball & Peter Mattis",
                                      "1995-1996",

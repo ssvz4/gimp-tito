@@ -972,7 +972,8 @@ gimp_transform_tool_real_transform (GimpTransformTool *tr_tool,
   GimpTransformOptions *options = GIMP_TRANSFORM_TOOL_GET_OPTIONS (tool);
   GimpContext          *context = GIMP_CONTEXT (options);
   GimpProgress         *progress;
-  TileManager          *ret  = NULL;
+  TileManager          *ret     = NULL;
+  GimpTransformResize   clip    = options->clip;
 
   progress = gimp_progress_start (GIMP_PROGRESS (tool),
                                   tr_tool->progress_text, FALSE);
@@ -983,7 +984,7 @@ gimp_transform_tool_real_transform (GimpTransformTool *tr_tool,
                                 options->direction,
                                 options->interpolation,
                                 options->recursion_level,
-                                options->clip,
+                                clip,
                                 progress);
 
   if (orig_tiles)
@@ -992,14 +993,12 @@ gimp_transform_tool_real_transform (GimpTransformTool *tr_tool,
        *  normal drawable, or the selection
        */
 
-      GimpTransformResize clip_result = options->clip;
-
       /*  always clip the selction and unfloated channels
        *  so they keep their size
        */
       if (GIMP_IS_CHANNEL (active_item) &&
           tile_manager_bpp (orig_tiles) == 1)
-        clip_result = GIMP_TRANSFORM_RESIZE_CLIP;
+        clip = GIMP_TRANSFORM_RESIZE_CLIP;
 
       ret = gimp_drawable_transform_tiles_affine (GIMP_DRAWABLE (active_item),
                                                   context,
@@ -1010,7 +1009,7 @@ gimp_transform_tool_real_transform (GimpTransformTool *tr_tool,
                                                   options->direction,
                                                   options->interpolation,
                                                   options->recursion_level,
-                                                  clip_result,
+                                                  clip,
                                                   new_offset_x,
                                                   new_offset_y,
                                                   progress);
@@ -1019,12 +1018,17 @@ gimp_transform_tool_real_transform (GimpTransformTool *tr_tool,
     {
       /*  this happens for entire drawables, paths and layer groups  */
 
+      /*  always clip layer masks so they keep their size
+       */
+      if (GIMP_IS_CHANNEL (active_item))
+        clip = GIMP_TRANSFORM_RESIZE_CLIP;
+
       gimp_item_transform (active_item, context,
                            &tr_tool->transform,
                            options->direction,
                            options->interpolation,
                            options->recursion_level,
-                           options->clip,
+                           clip,
                            progress);
     }
 
@@ -1099,7 +1103,7 @@ gimp_transform_tool_transform (GimpTransformTool *tr_tool,
   gimp_draw_tool_stop (GIMP_DRAW_TOOL (tr_tool));
 
   /*  We're going to dirty this image, but we want to keep the tool around  */
-  gimp_tool_control_set_preserve (tool->control, TRUE);
+  gimp_tool_control_push_preserve (tool->control, TRUE);
 
   undo_desc = GIMP_TRANSFORM_TOOL_GET_CLASS (tr_tool)->get_undo_desc (tr_tool);
   gimp_image_undo_group_start (image, GIMP_UNDO_GROUP_TRANSFORM, undo_desc);
@@ -1186,7 +1190,7 @@ gimp_transform_tool_transform (GimpTransformTool *tr_tool,
   /*  We're done dirtying the image, and would like to be restarted if
    *  the image gets dirty while the tool exists
    */
-  gimp_tool_control_set_preserve (tool->control, FALSE);
+  gimp_tool_control_pop_preserve (tool->control);
 
   gimp_tool_control (tool, GIMP_TOOL_ACTION_HALT, display);
 

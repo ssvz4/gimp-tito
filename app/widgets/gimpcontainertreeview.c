@@ -522,6 +522,8 @@ gimp_container_tree_view_set_container (GimpContainerView *view,
 
   if (old_container)
     {
+      tree_view->priv->dnd_renderer = NULL;
+
       g_signal_handlers_disconnect_by_func (tree_view->view,
                                             gimp_container_tree_view_row_expanded,
                                             tree_view);

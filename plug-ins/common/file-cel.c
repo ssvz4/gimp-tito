@@ -44,8 +44,10 @@ static void run   (const gchar      *name,
                    gint             *nreturn_vals,
                    GimpParam       **return_vals);
 
-static gint      load_palette   (FILE         *fp,
-                                 guchar        palette[]);
+static gint      load_palette   (const gchar  *file,
+                                 FILE         *fp,
+                                 guchar        palette[],
+                                 GError      **error);
 static gint32    load_image     (const gchar  *file,
                                  const gchar  *brief,
                                  GError      **error);
@@ -55,7 +57,8 @@ static gboolean  save_image     (const gchar  *file,
                                  gint32        layer,
                                  GError      **error);
 static void      palette_dialog (const gchar  *title);
-static gboolean  need_palette   (const gchar  *file);
+static gboolean  need_palette   (const gchar  *file,
+                                 GError      **error);
 
 
 /* Globals... */
@@ -150,6 +153,7 @@ run (const gchar      *name,
   gint32             image;
   GimpExportReturn   export = GIMP_EXPORT_CANCEL;
   GError            *error  = NULL;
+  gint               needs_palette = 0;
 
   run_mode = param[0].data.d_int32;
 
@@ -187,20 +191,32 @@ run (const gchar      *name,
       else if (run_mode == GIMP_RUN_INTERACTIVE)
         {
           /* Let user choose KCF palette (cancel ignores) */
-          if (need_palette (param[1].data.d_string))
-            palette_dialog (_("Load KISS Palette"));
+          needs_palette = need_palette (param[1].data.d_string, &error);
 
-          gimp_set_data (SAVE_PROC, palette_file, data_length);
+          if (! error)
+            {
+              if (needs_palette)
+                palette_dialog (_("Load KISS Palette"));
+
+              gimp_set_data (SAVE_PROC, palette_file, data_length);
+            }
         }
 
-      image = load_image (param[1].data.d_string, param[2].data.d_string,
-                          &error);
-
-      if (image != -1)
+      if (! error)
         {
-          *nreturn_vals = 2;
-          values[1].type         = GIMP_PDB_IMAGE;
-          values[1].data.d_image = image;
+          image = load_image (param[1].data.d_string, param[2].data.d_string,
+                              &error);
+
+          if (image != -1)
+            {
+              *nreturn_vals = 2;
+              values[1].type         = GIMP_PDB_IMAGE;
+              values[1].data.d_image = image;
+            }
+          else
+            {
+              status = GIMP_PDB_EXECUTION_ERROR;
+            }
         }
       else
         {
@@ -263,17 +279,32 @@ run (const gchar      *name,
 
 /* Peek into the file to determine whether we need a palette */
 static gboolean
-need_palette (const gchar *file)
+need_palette (const gchar *file,
+              GError     **error)
 {
   FILE   *fp;
   guchar  header[32];
+  size_t  n_read;
 
   fp = g_fopen (file, "rb");
-  if (!fp)
-    return FALSE;
+  if (fp == NULL)
+    {
+      g_set_error (error, G_FILE_ERROR, g_file_error_from_errno (errno),
+                   _("Could not open '%s' for reading: %s"),
+                   gimp_filename_to_utf8 (file), g_strerror (errno));
+      return FALSE;
+    }
 
-  fread (header, 32, 1, fp);
+  n_read = fread (header, 32, 1, fp);
+
   fclose (fp);
+
+  if (n_read < 1)
+    {
+      g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                   _("EOF or error while reading image header"));
+      return FALSE;
+    }
 
   return (header[5] < 32);
 }
@@ -286,11 +317,12 @@ load_image (const gchar  *file,
             GError      **error)
 {
   FILE      *fp;            /* Read file pointer */
-  guchar     header[32];    /* File header */
+  guchar     header[32],    /* File header */
+             file_mark,     /* KiSS file type */
+             bpp;           /* Bits per pixel */
   gint       height, width, /* Dimensions of image */
              offx, offy,    /* Layer offets */
-             colours,       /* Number of colours */
-             bpp;           /* Bits per pixel */
+             colours;       /* Number of colours */
 
   gint32     image,         /* Image */
              layer;         /* Layer */
@@ -301,6 +333,7 @@ load_image (const gchar  *file,
   GimpPixelRgn  pixel_rgn;  /* Pixel region for layer */
 
   gint       i, j, k;       /* Counters */
+  size_t     n_read;        /* Number of items read from file */
 
 
   /* Open the file for reading */
@@ -319,7 +352,14 @@ load_image (const gchar  *file,
 
   /* Get the image dimensions and create the image... */
 
-  fread (header, 4, 1, fp);
+  n_read = fread (header, 4, 1, fp);
+
+  if (n_read < 1)
+    {
+      g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                   _("EOF or error while reading image header"));
+      return -1;
+    }
 
   if (strncmp ((const gchar *) header, "KiSS", 4))
     {
@@ -332,16 +372,51 @@ load_image (const gchar  *file,
     }
   else
     { /* New-style image file, read full header */
-      fread (header, 28, 1, fp);
+      n_read = fread (header, 28, 1, fp);
+
+      if (n_read < 1)
+        {
+          g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                       _("EOF or error while reading image header"));
+          return -1;
+        }
+
+      file_mark = header[0];
+      if (file_mark != 0x20 && file_mark != 0x21)
+        {
+          g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                       _("is not a CEL image file"));
+          return -1;
+        }
+
       bpp = header[1];
-      if (bpp == 24)
-        colours = -1;
-      else
-        colours = (1 << header[1]);
+      switch (bpp)
+        {
+        case 4:
+        case 8:
+        case 32:
+          colours = (1 << bpp);
+          break;
+        default:
+          g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                       _("illegal bpp value in image: %hhu"), bpp);
+          return -1;
+        }
+
       width = header[4] + (256 * header[5]);
       height = header[6] + (256 * header[7]);
       offx = header[8] + (256 * header[9]);
       offy = header[10] + (256 * header[11]);
+    }
+
+  if ((width == 0) || (height == 0) || (width + offx > GIMP_MAX_IMAGE_SIZE) ||
+      (height + offy > GIMP_MAX_IMAGE_SIZE))
+    {
+      g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                   _("illegal image dimensions: width: %d, horizontal offset: "
+                     "%d, height: %d, vertical offset: %d"),
+                   width, offx, height, offy);
+      return -1;
     }
 
   if (bpp == 32)
@@ -351,7 +426,7 @@ load_image (const gchar  *file,
 
   if (image == -1)
     {
-      g_message (_("Can't create a new image"));
+      g_set_error (error, 0, 0, _("Can't create a new image"));
       fclose (fp);
       return -1;
     }
@@ -384,7 +459,15 @@ load_image (const gchar  *file,
       switch (bpp)
         {
         case 4:
-          fread (buffer, (width+1)/2, 1, fp);
+          n_read = fread (buffer, (width+1)/2, 1, fp);
+
+          if (n_read < 1)
+            {
+              g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                           _("EOF or error while reading image data"));
+              return -1;
+            }
+
           for (j = 0, k = 0; j < width*2; j+= 4, ++k)
             {
               if (buffer[k] / 16 == 0)
@@ -411,7 +494,15 @@ load_image (const gchar  *file,
           break;
 
         case 8:
-          fread (buffer, width, 1, fp);
+          n_read = fread (buffer, width, 1, fp);
+
+          if (n_read < 1)
+            {
+              g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                           _("EOF or error while reading image data"));
+              return -1;
+            }
+
           for (j = 0, k = 0; j < width*2; j+= 2, ++k)
             {
               if (buffer[k] == 0)
@@ -428,7 +519,15 @@ load_image (const gchar  *file,
           break;
 
         case 32:
-          fread (line, width*4, 1, fp);
+          n_read = fread (line, width*4, 1, fp);
+
+          if (n_read < 1)
+            {
+              g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                           _("EOF or error while reading image data"));
+              return -1;
+            }
+
           /* The CEL file order is BGR so we need to swap B and R
            * to get the Gimp RGB order.
            */
@@ -441,7 +540,8 @@ load_image (const gchar  *file,
           break;
 
         default:
-          g_message (_("Unsupported bit depth (%d)!"), bpp);
+          g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                       _("Unsupported bit depth (%d)!"), bpp);
           return -1;
         }
 
@@ -459,7 +559,7 @@ load_image (const gchar  *file,
   if (bpp != 32)
     {
       /* Use palette from file or otherwise default grey palette */
-      palette = g_new (guchar, colours*3);
+      guchar palette[256*3];
 
       /* Open the file for reading if user picked one */
       if (palette_file == NULL)
@@ -469,12 +569,23 @@ load_image (const gchar  *file,
       else
         {
           fp = g_fopen (palette_file, "r");
+
+          if (fp == NULL)
+            {
+              g_set_error (error, G_FILE_ERROR, g_file_error_from_errno (errno),
+                           _("Could not open '%s' for reading: %s"),
+                           gimp_filename_to_utf8 (palette_file),
+                           g_strerror (errno));
+              return -1;
+            }
         }
 
       if (fp != NULL)
         {
-          colours = load_palette (fp, palette);
+          colours = load_palette (palette_file, fp, palette, error);
           fclose (fp);
+          if (colours < 0 || *error)
+            return -1;
         }
       else
         {
@@ -485,10 +596,6 @@ load_image (const gchar  *file,
         }
 
       gimp_image_set_colormap (image, palette + 3, colours - 1);
-
-      /* Close palette file, give back allocated memory */
-
-      g_free (palette);
     }
 
   /* Now get everything redrawn and hand back the finished image */
@@ -500,32 +607,100 @@ load_image (const gchar  *file,
 }
 
 static gint
-load_palette (FILE   *fp,
-              guchar  palette[])
+load_palette (const gchar *file,
+              FILE        *fp,
+              guchar       palette[],
+              GError     **error)
 {
   guchar        header[32];     /* File header */
   guchar        buffer[2];
-  int           i, bpp, colours= 0;
+  guchar        file_mark, bpp;
+  gint          i, colours = 0;
+  size_t        n_read;
 
-  fread (header, 4, 1, fp);
+  n_read = fread (header, 4, 1, fp);
+
+  if (n_read < 1)
+    {
+      g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                   _("'%s': EOF or error while reading palette header"),
+                   gimp_filename_to_utf8 (file));
+      return -1;
+    }
+
   if (!strncmp ((const gchar *) header, "KiSS", 4))
     {
-      fread (header+4, 28, 1, fp);
-      bpp = header[5];
-      colours = header[8] + header[9] * 256;
-      if (bpp == 12)
+      n_read = fread (header+4, 28, 1, fp);
+
+      if (n_read < 1)
         {
+          g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                       _("'%s': EOF or error while reading palette header"),
+                       gimp_filename_to_utf8 (file));
+          return -1;
+        }
+
+      file_mark = header[4];
+      if (file_mark != 0x10)
+        {
+          g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                       _("'%s': is not a KCF palette file"),
+                       gimp_filename_to_utf8 (file));
+          return -1;
+        }
+
+      bpp = header[5];
+      if (bpp != 12 && bpp != 24)
+        {
+          g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                       _("'%s': illegal bpp value in palette: %hhu"),
+                       gimp_filename_to_utf8 (file), bpp);
+          return -1;
+        }
+
+      colours = header[8] + header[9] * 256;
+      if (colours != 16 && colours != 256)
+        {
+          g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                       _("'%s': illegal number of colors: %u"),
+                       gimp_filename_to_utf8 (file), colours);
+          return -1;
+        }
+
+      switch (bpp)
+        {
+        case 12:
           for (i = 0; i < colours; ++i)
             {
-              fread (buffer, 1, 2, fp);
+              n_read = fread (buffer, 1, 2, fp);
+
+              if (n_read < 2)
+                {
+                  g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                               _("'%s': EOF or error while reading "
+                                 "palette data"),
+                               gimp_filename_to_utf8 (file));
+                  return -1;
+                }
+
               palette[i*3]= buffer[0] & 0xf0;
               palette[i*3+1]= (buffer[1] & 0x0f) * 16;
               palette[i*3+2]= (buffer[0] & 0x0f) * 16;
             }
-        }
-      else
-        {
-          fread (palette, colours, 3, fp);
+          break;
+        case 24:
+          n_read = fread (palette, colours, 3, fp);
+
+          if (n_read < 3)
+            {
+              g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                           _("'%s': EOF or error while reading palette data"),
+                           gimp_filename_to_utf8 (file));
+              return -1;
+            }
+          break;
+        default:
+          g_assert_not_reached ();
         }
     }
   else
@@ -534,7 +709,16 @@ load_palette (FILE   *fp,
       fseek (fp, 0, SEEK_SET);
       for (i= 0; i < colours; ++i)
         {
-          fread (buffer, 1, 2, fp);
+          n_read = fread (buffer, 1, 2, fp);
+
+          if (n_read < 2)
+            {
+              g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                           _("'%s': EOF or error while reading palette data"),
+                           gimp_filename_to_utf8 (file));
+              return -1;
+            }
+
           palette[i*3] = buffer[0] & 0xf0;
           palette[i*3+1] = (buffer[1] & 0x0f) * 16;
           palette[i*3+2] = (buffer[0] & 0x0f) * 16;

@@ -40,6 +40,7 @@ struct _GimpImagePrivate
   GimpPlugInProcedure *save_proc;           /*  last save procedure used     */
 
   gchar             *display_name;          /*  display basename             */
+  gchar             *display_path;          /*  display full path            */
   gint               width;                 /*  width in pixels              */
   gint               height;                /*  height in pixels             */
   gdouble            xresolution;           /*  image x-res, in dpi          */
@@ -108,6 +109,9 @@ struct _GimpImagePrivate
         G_TYPE_INSTANCE_GET_PRIVATE (image, \
                                      GIMP_TYPE_IMAGE, \
                                      GimpImagePrivate)
+
+void   gimp_image_take_mask (GimpImage   *image,
+                             GimpChannel *mask);
 
 
 #endif  /* __GIMP_IMAGE_PRIVATE_H__ */

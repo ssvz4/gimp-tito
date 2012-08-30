@@ -261,9 +261,9 @@ file_actions_update (GimpActionGroup *group,
 
   if (image)
     {
-      drawable  = gimp_image_get_active_drawable (image);
-      source    = gimp_image_get_imported_uri (image);
-      export    = gimp_image_get_exported_uri (image);
+      drawable = gimp_image_get_active_drawable (image);
+      source   = gimp_image_get_imported_uri (image);
+      export   = gimp_image_get_exported_uri (image);
     }
 
   show_overwrite =
@@ -307,7 +307,7 @@ file_actions_update (GimpActionGroup *group,
     }
 
   /*  needed for the empty display  */
-  SET_SENSITIVE ("file-close-all",       image);
+  SET_SENSITIVE ("file-close-all", image);
 
 #undef SET_SENSITIVE
 }

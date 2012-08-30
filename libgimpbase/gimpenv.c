@@ -28,6 +28,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef PLATFORM_OSX
+#include <AppKit/AppKit.h>
+#endif
+
 #include <glib-object.h>
 #include <glib/gstdio.h>
 
@@ -226,6 +230,26 @@ gimp_directory (void)
     }
   else
     {
+#ifdef PLATFORM_OSX
+
+      NSAutoreleasePool *pool;
+      NSArray           *path;
+      NSString          *library_dir;
+
+      pool = [[NSAutoreleasePool alloc] init];
+
+      path = NSSearchPathForDirectoriesInDomains (NSLibraryDirectory,
+                                                  NSUserDomainMask, YES);
+      library_dir = [path objectAtIndex:0];
+
+      gimp_dir = g_build_filename ([library_dir UTF8String],
+                                   "GIMP", GIMP_USER_VERSION,
+                                   NULL);
+
+      [pool drain];
+
+#else /* ! PLATFORM_OSX */
+
       if (home_dir)
         {
           gimp_dir = g_build_filename (home_dir, GIMPDIR, NULL);
@@ -262,6 +286,8 @@ gimp_directory (void)
           g_free (user_name);
           g_free (subdir_name);
         }
+
+#endif /* PLATFORM_OSX */
     }
 
   return gimp_dir;
@@ -295,8 +321,26 @@ DllMain (HINSTANCE hinstDLL,
 
 #endif
 
-static const gchar *
-gimp_toplevel_directory (void)
+/**
+ * gimp_installation_directory:
+ *
+ * Returns the top installation directory of GIMP. On Unix the
+ * compile-time defined installation prefix is used. On Windows, the
+ * installation directory as deduced from the executable's full
+ * filename is used. On OSX we ask [NSBundle mainBundle] for the
+ * resource path to check if GIMP is part of a relocatable bundle.
+ *
+ * The returned string is owned by GIMP and must not be modified or
+ * freed. The returned string is in the encoding used for filenames by
+ * GLib, which isn't necessarily UTF-8. (On Windows it always is
+ * UTF-8.)
+ *
+ * Since: GIMP 2.8
+ *
+ * Returns: The toplevel installation directory of GIMP.
+ **/
+const gchar *
+gimp_installation_directory (void)
 {
   static gchar *toplevel = NULL;
 
@@ -304,6 +348,7 @@ gimp_toplevel_directory (void)
     return toplevel;
 
 #ifdef G_OS_WIN32
+
   {
     /* Figure it out from the location of this DLL */
     gchar *filename;
@@ -337,8 +382,65 @@ gimp_toplevel_directory (void)
 
     toplevel = filename;
   }
+
+#elif PLATFORM_OSX
+
+  {
+    NSAutoreleasePool *pool;
+    NSString          *resource_path;
+    gchar             *basename;
+    gchar             *dirname;
+
+    pool = [[NSAutoreleasePool alloc] init];
+
+    resource_path = [[NSBundle mainBundle] resourcePath];
+
+    basename = g_path_get_basename ([resource_path UTF8String]);
+    dirname  = g_path_get_dirname ([resource_path UTF8String]);
+
+    if (! strcmp (basename, ".libs"))
+      {
+        /*  we are running from the source dir, do normal unix things  */
+
+        toplevel = _gimp_reloc_find_prefix (PREFIX);
+      }
+    else if (! strcmp (basename, "bin"))
+      {
+        /*  we are running the main app, but not from a bundle, the resource
+         *  path is the directory which contains the executable
+         */
+
+        toplevel = g_strdup (dirname);
+      }
+    else if (! strcmp (basename, "plug-ins"))
+      {
+        /*  same for plug-ins, go three levels up from prefix/lib/gimp/x.y  */
+
+        gchar *tmp  = g_path_get_dirname (dirname);
+        gchar *tmp2 = g_path_get_dirname (tmp);
+
+        toplevel = g_path_get_dirname (tmp2);
+
+        g_free (tmp);
+        g_free (tmp2);
+      }
+    else
+      {
+        /*  if none of the above match, we assume that we are really in a bundle  */
+
+        toplevel = g_strdup ([resource_path UTF8String]);
+      }
+
+    g_free (basename);
+    g_free (dirname);
+
+    [pool drain];
+  }
+
 #else
+
   toplevel = _gimp_reloc_find_prefix (PREFIX);
+
 #endif
 
   return toplevel;
@@ -571,7 +673,7 @@ gimp_path_runtime_fix (gchar **path)
        * real one on this machine.
        */
       p = *path;
-      *path = g_strconcat (gimp_toplevel_directory (),
+      *path = g_strconcat (gimp_installation_directory (),
                            "\\",
                            *path + strlen (PREFIX "/"),
                            NULL);
@@ -590,7 +692,7 @@ gimp_path_runtime_fix (gchar **path)
   gchar *p = *path;
   if (!g_path_is_absolute (p))
     {
-      *path = g_build_filename (gimp_toplevel_directory (), *path, NULL);
+      *path = g_build_filename (gimp_installation_directory (), *path, NULL);
       g_free (p);
     }
 #else
@@ -603,7 +705,7 @@ gimp_path_runtime_fix (gchar **path)
        * real one on this machine.
        */
       p = *path;
-      *path = g_build_filename (gimp_toplevel_directory (),
+      *path = g_build_filename (gimp_installation_directory (),
                                 *path + strlen (PREFIX G_DIR_SEPARATOR_S),
                                 NULL);
       g_free (p);

@@ -102,6 +102,7 @@
 
 #include "config.h"
 
+#include <glib/gstdio.h>
 #include <cairo-pdf.h>
 #include <pango/pangocairo.h>
 
@@ -314,6 +315,15 @@ query (void)
   gimp_register_save_handler (SAVE_PROC, "pdf", "");
 }
 
+static cairo_status_t
+write_func (void                *fp,
+            const unsigned char *data,
+            unsigned int         size)
+{
+  return fwrite (data, 1, size, fp) == size ? CAIRO_STATUS_SUCCESS
+                                            : CAIRO_STATUS_WRITE_ERROR;
+}
+
 static void
 run (const gchar      *name,
      gint              nparams,
@@ -358,6 +368,7 @@ run (const gchar      *name,
   gint32                  mask_id = -1;
   GimpDrawable           *mask = NULL;
   cairo_surface_t        *mask_image = NULL;
+  FILE                   *fp;
 
   INIT_I18N ();
 
@@ -403,7 +414,8 @@ run (const gchar      *name,
         }
     }
 
-  pdf_file = cairo_pdf_surface_create (file_name, 1, 1);
+  fp = g_fopen (file_name, "wb");
+  pdf_file = cairo_pdf_surface_create_for_stream (write_func, fp, 1, 1);
   if (cairo_surface_status (pdf_file) != CAIRO_STATUS_SUCCESS)
     {
       char *str = g_strdup_printf
@@ -546,6 +558,7 @@ run (const gchar      *name,
   cairo_surface_destroy (pdf_file);
   cairo_destroy (cr);
 
+  fclose (fp);
   /* Finally done, let's save the parameters */
   gimp_set_data (DATA_OPTIMIZE, &optimize, sizeof (optimize));
   if (!single_image)
@@ -1396,7 +1409,7 @@ drawText (GimpDrawable *text_layer,
           gdouble       y_res)
 {
   gint32                text_id = text_layer->drawable_id;
-  GimpImageBaseType     type = gimp_drawable_type (text_id);
+  GimpImageType         type = gimp_drawable_type (text_id);
 
   gchar                *text = gimp_text_layer_get_text (text_id);
   gchar                *markup = gimp_text_layer_get_markup (text_id);
@@ -1443,7 +1456,7 @@ drawText (GimpDrawable *text_layer,
   /* Color */
   /* When dealing with a gray/indexed image, the viewed color of the text layer
    * can be different than the one kept in the memory */
-  if (type == GIMP_RGB)
+  if (type == GIMP_RGBA_IMAGE)
     gimp_text_layer_get_color (text_id, &color);
   else
     gimp_image_pick_color (gimp_item_get_image (text_id), text_id, x, y, FALSE, FALSE, 0, &color);
@@ -1505,8 +1518,7 @@ drawText (GimpDrawable *text_layer,
 
   /* Font Size */
   size = gimp_text_layer_get_font_size (text_id, &unit);
-  if (! g_strcmp0 (gimp_unit_get_abbreviation (unit), "px") == 0)
-    size *= 1.0 / gimp_unit_get_factor (unit) * x_res / y_res;
+  size = gimp_units_to_pixels (size, unit, y_res);
   pango_font_description_set_absolute_size (font_description, size * PANGO_SCALE);
 
   pango_layout_set_font_description (layout, font_description);

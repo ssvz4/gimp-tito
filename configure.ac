@@ -8,16 +8,16 @@ AC_PREREQ(2.54)
 
 m4_define([gimp_major_version], [2])
 m4_define([gimp_minor_version], [8])
-m4_define([gimp_micro_version], [0])
+m4_define([gimp_micro_version], [3])
 m4_define([gimp_real_version],
           [gimp_major_version.gimp_minor_version.gimp_micro_version])
 m4_define([gimp_version], [gimp_real_version])
-m4_define([gimp_interface_age], [0])
+m4_define([gimp_interface_age], [3])
 m4_define([gimp_binary_age],
           [m4_eval(100 * gimp_minor_version + gimp_micro_version)])
 
 # For overriding the version string. Comment out if not needed.
-m4_define([gimp_version], [2.8.0-RC1])
+# m4_define([gimp_version], [2.8.1])
 
 # This is the X.Y used in -lgimp-X.Y
 m4_define([gimp_api_version], [2.0])
@@ -53,7 +53,7 @@ m4_define([fontconfig_required_version], [2.2.0])
 m4_define([gtkdoc_required_version], [1.0])
 m4_define([webkit_required_version], [1.6.1])
 m4_define([alsa_required_version], [1.0.0])
-m4_define([rsvg_required_version], [2.34.2])
+m4_define([rsvg_required_version], [2.36.0])
 m4_define([wmf_required_version], [0.2.8])
 m4_define([pygtk_required_version], [2.10.4])
 m4_define([poppler_required_version], [0.12.4])
@@ -1154,7 +1154,7 @@ AC_SUBST(Z_LIBS)
 # Check for libbzip2
 ####################
 
-AC_ARG_WITH(gs,  [  --without-bzip2         build without bzip2 support])
+AC_ARG_WITH(bzip2,  [  --without-bzip2         build without bzip2 support])
 
 have_libbzip2=no
 if test "x$with_bzip2" != xno; then
@@ -1839,16 +1839,20 @@ AC_SUBST(SCREENSHOT)
 # Check for Mac OS X
 ####################
 
+platform_osx=no
 AC_MSG_CHECKING([if compiling for Mac OS X])
 case "$target_or_host" in
   *-*-darwin*)
      AC_MSG_RESULT(yes)
      AC_DEFINE(PLATFORM_OSX, 1, [define to 1 if compiling for Mac OS X])
+     platform_osx=yes
      ;;
   *)
      AC_MSG_RESULT(no)
      ;;
 esac
+
+AM_CONDITIONAL(PLATFORM_OSX, test "x$platform_osx" = xyes)
 
 
 ####################################

@@ -944,6 +944,9 @@ gimp_display_shell_canvas_tool_events (GtkWidget        *canvas,
               }
           }
 
+        if (compressed_motion)
+          gdk_event_free (compressed_motion);
+
         return_val = TRUE;
       }
       break;
@@ -998,28 +1001,37 @@ gimp_display_shell_canvas_tool_events (GtkWidget        *canvas,
 
             switch (kevent->keyval)
               {
+                gboolean arrow_key = FALSE;
+
+              case GDK_KEY_Left:
+              case GDK_KEY_Right:
+              case GDK_KEY_Up:
+              case GDK_KEY_Down:
+                arrow_key = TRUE;
+
               case GDK_KEY_Return:
               case GDK_KEY_KP_Enter:
               case GDK_KEY_ISO_Enter:
               case GDK_KEY_BackSpace:
               case GDK_KEY_Escape:
-              case GDK_KEY_Left:
-              case GDK_KEY_Right:
-              case GDK_KEY_Up:
-              case GDK_KEY_Down:
-                if (gimp_image_is_empty (image) ||
-                    ! tool_manager_key_press_active (gimp,
-                                                     kevent,
-                                                     display))
+                if (! gimp_image_is_empty (image))
+                  return_val = tool_manager_key_press_active (gimp,
+                                                              kevent,
+                                                              display);
+
+                if (! return_val)
                   {
                     GimpController *keyboard = gimp_controllers_get_keyboard (gimp);
 
                     if (keyboard)
-                      gimp_controller_keyboard_key_press (GIMP_CONTROLLER_KEYBOARD (keyboard),
-                                                          kevent);
+                      return_val =
+                        gimp_controller_keyboard_key_press (GIMP_CONTROLLER_KEYBOARD (keyboard),
+                                                            kevent);
                   }
 
-                return_val = TRUE;
+                /* always swallow arrow keys, we don't want focus keynav */
+                if (! return_val)
+                  return_val = arrow_key;
                 break;
 
               case GDK_KEY_space:
@@ -1048,7 +1060,6 @@ gimp_display_shell_canvas_tool_events (GtkWidget        *canvas,
                   if (! gimp_image_is_empty (image))
                     tool_manager_modifier_state_active (gimp, state, display);
                 }
-
                 break;
               }
 
@@ -1135,7 +1146,6 @@ gimp_display_shell_canvas_tool_events (GtkWidget        *canvas,
                   if (! gimp_image_is_empty (image))
                     tool_manager_modifier_state_active (gimp, state, display);
                 }
-
                 break;
               }
 
@@ -1786,6 +1796,17 @@ gimp_display_shell_compress_motion (GimpDisplayShell *shell)
             gdk_event_free (last_motion);
 
           last_motion = event;
+        }
+      else if ((gtk_get_event_widget (event) == shell->canvas) &&
+               (event->any.type == GDK_BUTTON_RELEASE))
+        {
+          requeued_events = g_list_prepend (requeued_events, event);
+
+          while (gdk_events_pending ())
+            if ((event = gdk_event_get ()))
+              requeued_events = g_list_prepend (requeued_events, event);
+
+          break;
         }
       else
         {
