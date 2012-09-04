@@ -495,6 +495,7 @@
 #define GIMP_HELP_DOCK_SHOW_BUTTON_BAR            "gimp-dock-show-button-bar"
 
 #define GIMP_HELP_ABOUT_DIALOG                    "gimp-about-dialog"
+#define GIMP_HELP_TITO_DIALOG                     "gimp-tito-dialog"
 #define GIMP_HELP_COLOR_DIALOG                    "gimp-color-dialog"
 #define GIMP_HELP_DEVICE_STATUS_DIALOG            "gimp-device-status-dialog"
 #define GIMP_HELP_DISPLAY_FILTER_DIALOG           "gimp-display-filter-dialog"

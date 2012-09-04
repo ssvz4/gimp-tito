@@ -687,6 +687,7 @@
       <menuitem action="help-context-help" />
       <menuitem action="dialogs-tips" />
       <menuitem action="dialogs-about" />
+      <menuitem action="dialogs-tito" />
       <separator />
       <placeholder name="Programming" />
       <separator />
