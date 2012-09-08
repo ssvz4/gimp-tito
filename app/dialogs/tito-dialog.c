@@ -752,10 +752,10 @@ tito_initializer(void)
   if(first_time)
   {
     history_file_path= g_new(gchar, 1024);
-    strcpy(history_file_path,(gchar*)gimp_sysconf_directory());
+    strcpy(history_file_path, g_get_user_data_dir());
 
     preference_file_path= g_new(gchar,1024);
-    strcpy(preference_file_path,(gchar*)gimp_sysconf_directory());
+    strcpy(preference_file_path, g_get_user_config_dir());
 
     strcat(history_file_path,"/history_tito");
     strcat(preference_file_path,"/preferences_tito");
