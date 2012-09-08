@@ -20,6 +20,7 @@
 #include <time.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <glib/gstdio.h>
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
@@ -741,6 +742,28 @@ tito_finalizer(void)
     gtk_widget_destroy(tito_dialog);
 }
 
+static void
+initialize_storage (void)
+{
+  gchar *dir_filename = g_build_filename (gimp_directory (), "tito", NULL);
+
+  g_mkdir (dir_filename,
+           S_IRUSR | S_IWUSR | S_IXUSR |
+           S_IRGRP | S_IXGRP |
+           S_IROTH | S_IXOTH);
+
+  history_file_path= g_new(gchar, 1024);
+  strcpy(history_file_path, dir_filename);
+
+  preference_file_path= g_new(gchar,1024);
+  strcpy(preference_file_path, dir_filename);
+
+  strcat(history_file_path,"/history");
+  strcat(preference_file_path,"/preferences");
+
+  g_free (dir_filename);
+}
+
 gboolean
 tito_initializer(void)
 {
@@ -751,14 +774,7 @@ tito_initializer(void)
 
   if(first_time)
   {
-    history_file_path= g_new(gchar, 1024);
-    strcpy(history_file_path, g_get_user_data_dir());
-
-    preference_file_path= g_new(gchar,1024);
-    strcpy(preference_file_path, g_get_user_config_dir());
-
-    strcat(history_file_path,"/history_tito");
-    strcat(preference_file_path,"/preferences_tito");
+    initialize_storage();
 
     for(i=0;i<MAX_HISTORY_ACTIONS;i++)
       {
