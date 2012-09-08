@@ -23,8 +23,6 @@ libappdialogs_a_sources = \
 	\
 	about-dialog.c			\
 	about-dialog.h			\
-	tito-dialog.c	  		\
-	tito-dialog.h       \
 	channel-options-dialog.c	\
 	channel-options-dialog.h	\
 	convert-type-dialog.c		\
@@ -84,6 +82,8 @@ libappdialogs_a_sources = \
 	tips-dialog.h			\
 	tips-parser.c			\
 	tips-parser.h			\
+	tito-dialog.c	  		\
+	tito-dialog.h           \
 	user-install-dialog.c		\
 	user-install-dialog.h		\
 	vectors-export-dialog.c		\
