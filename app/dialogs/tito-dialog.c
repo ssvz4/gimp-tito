@@ -600,8 +600,8 @@ tito_is_action_match ( GtkAction *action,
 
   if(strstr(label,key))
         return TRUE;
-  if(fuzzy_search(label,key))
-        return TRUE;
+  // if(fuzzy_search(label,key))
+  //       return TRUE;
 
   if(strlen(key)>2 || strcmp(key," ")==0)
     {

@@ -1,0 +1,47 @@
+[1mdiff --git a/app/dialogs/Makefile.am b/app/dialogs/Makefile.am[m
+[1mindex a76dc7e..3c2f649 100644[m
+[1m--- a/app/dialogs/Makefile.am[m
+[1m+++ b/app/dialogs/Makefile.am[m
+[36m@@ -20,11 +20,8 @@[m [mlibappdialogs_a_sources = \[m
+ 	dialogs.h			\[m
+ 	dialogs-constructors.c		\[m
+ 	dialogs-constructors.h		\[m
+[31m-	\[m
+ 	about-dialog.c			\[m
+ 	about-dialog.h			\[m
+[31m-	tito-dialog.c	  		\[m
+[31m-	tito-dialog.h       \[m
+ 	channel-options-dialog.c	\[m
+ 	channel-options-dialog.h	\[m
+ 	convert-type-dialog.c		\[m
+[36m@@ -84,6 +81,8 @@[m [mlibappdialogs_a_sources = \[m
+ 	tips-dialog.h			\[m
+ 	tips-parser.c			\[m
+ 	tips-parser.h			\[m
+[32m+[m	[32mtito-dialog.c	  		\[m
+[32m+[m	[32mtito-dialog.h           \[m
+ 	user-install-dialog.c		\[m
+ 	user-install-dialog.h		\[m
+ 	vectors-export-dialog.c		\[m
+[1mdiff --git a/app/dialogs/tito-dialog.c b/app/dialogs/tito-dialog.c[m
+[1mindex e16bd1f..8cc9b50 100644[m
+[1m--- a/app/dialogs/tito-dialog.c[m
+[1m+++ b/app/dialogs/tito-dialog.c[m
+[36m@@ -566,7 +566,8 @@[m [mfuzzy_search ( gchar *string,[m
+ [m
+   if ( (remaining_string = strchr(string, key[0])) != NULL )[m
+       fuzzy_search( key+1, remaining_string+1 );[m
+[31m-  return FALSE;[m
+[32m+[m[32m  else[m
+[32m+[m[32m    return FALSE;[m
+ }[m
+ [m
+ static gboolean[m
+[36m@@ -600,6 +601,7 @@[m [mtito_is_action_match ( GtkAction *action,[m
+ [m
+   if(strstr(label,key))[m
+         return TRUE;[m
+[32m+[m
+   if(fuzzy_search(label,key))[m
+         return TRUE;[m
+ [m
