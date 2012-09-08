@@ -556,6 +556,19 @@ static void tito_fill_history (void)
 }
 
 static gboolean
+fuzzy_search ( gchar *string,
+               gchar *key)
+{
+  gchar *remaining_string = string;
+  if ( strlen(key) == 0 || strlen(remaining_string) == 0 )
+      return TRUE;
+
+  if ( (remaining_string = strchr(string, key[0])) != NULL )
+      fuzzy_search( key+1, remaining_string+1 );
+  return FALSE;
+}
+
+static gboolean
 tito_is_action_match ( GtkAction *action,
                        const gchar* keyword)
 {
@@ -585,6 +598,8 @@ tito_is_action_match ( GtkAction *action,
     }
 
   if(strstr(label,key))
+        return TRUE;
+  if(fuzzy_search(label,key))
         return TRUE;
 
   if(strlen(key)>2 || strcmp(key," ")==0)
@@ -733,7 +748,7 @@ tito_initializer(void)
   GdkWindow *par_window = gdk_screen_get_active_window(gdk_screen_get_default());
   gdk_window_get_geometry (par_window, &par_x, &par_y, &par_width, &par_height, NULL);
   tito_update_position();
-                                                         
+
   if(first_time)
   {
     history_file_path= g_new(gchar, 1024);
