@@ -561,12 +561,13 @@ fuzzy_search ( gchar *string,
                gchar *key)
 {
   gchar *remaining_string = string;
-  if ( strlen(key) == 0 || strlen(remaining_string) == 0 )
+  if ( strlen(key) == 0 )
       return TRUE;
 
   if ( (remaining_string = strchr(string, key[0])) != NULL )
-      fuzzy_search( key+1, remaining_string+1 );
-  return FALSE;
+      return fuzzy_search( remaining_string+1, key+1 );
+  else
+    return FALSE;
 }
 
 static gboolean
@@ -599,9 +600,10 @@ tito_is_action_match ( GtkAction *action,
     }
 
   if(strstr(label,key))
-        return TRUE;
-  // if(fuzzy_search(label,key))
-  //       return TRUE;
+    return TRUE;
+
+  if(fuzzy_search(label,key))
+    return TRUE;
 
   if(strlen(key)>2 || strcmp(key," ")==0)
     {
